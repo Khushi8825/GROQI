@@ -1,6 +1,9 @@
 import React, { useState, useRef, useEffect, useCallback } from "react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
+import { Prism as SyntaxHighlighter } from "react-syntax-highlighter";
+import { oneDark } from "react-syntax-highlighter/dist/esm/styles/prism";
+
 const App = () => {
   const [messages, setMessages] = useState([]);
   const [inputValue, setInputValue] = useState("");
@@ -127,11 +130,31 @@ const App = () => {
                     strong: ({ children }) => (
                       <strong className="font-semibold">{children}</strong>
                     ),
-                    code: ({ children }) => (
-                      <code className="bg-gray-200 px-1 rounded text-sm">
-                        {children}
-                      </code>
-                    ),
+                    code: ({ inline, className, children }) => {
+                      const match = /language-(\w+)/.exec(className || "");
+
+                      return !inline ? (
+                        <div className="my-4 rounded-xl overflow-hidden shadow-lg">
+                          <SyntaxHighlighter
+                            style={oneDark}
+                            language={match?.[1] || "cpp"}
+                            PreTag="div"
+                            customStyle={{
+                              margin: 0,
+                              padding: "16px",
+                              fontSize: "14px",
+                              borderRadius: "12px",
+                            }}
+                          >
+                            {String(children).replace(/\n$/, "")}
+                          </SyntaxHighlighter>
+                        </div>
+                      ) : (
+                        <code className="bg-gray-200 px-1 rounded text-sm font-mono">
+                          {children}
+                        </code>
+                      );
+                    },
                   }}
                 >
                   {message.text}
