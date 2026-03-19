@@ -84,6 +84,7 @@ app.post("/api/chat", async (req, res) => {
     const risk = await detectRisk(message);
     console.log("🚨 Risk Level:", risk);
     console.log("🧠 Detected Emotion:", emotion);
+    console.log("Emotion from backend:", data.emotion);
 
     if (!message) {
       return res.json({ reply: "Message missing" });

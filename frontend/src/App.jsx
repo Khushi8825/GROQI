@@ -24,7 +24,7 @@ const App = () => {
       textareaRef.current.style.height = "auto";
       textareaRef.current.style.height = `${Math.min(
         textareaRef.current.scrollHeight,
-        120
+        120,
       )}px`;
     }
   }, [inputValue]);
@@ -33,8 +33,10 @@ const App = () => {
     const message = inputValue.trim();
     if (!message || isLoading) return;
 
-    // user message add
-    setMessages((prev) => [...prev, { text: message, sender: "user" }]);
+    // ✅ Add USER message first (correct)
+    const userMsg = { text: message, sender: "user" };
+    setMessages((prev) => [...prev, userMsg]);
+
     setInputValue("");
     setIsLoading(true);
 
@@ -49,7 +51,14 @@ const App = () => {
 
       const data = await response.json();
 
-      setMessages((prev) => [...prev, { text: data.reply, sender: "ai" }]);
+      // ✅ Add AI message WITH emotion
+      const aiMsg = {
+        text: data.reply,
+        sender: "ai",
+        emotion: data.emotion,
+      };
+
+      setMessages((prev) => [...prev, aiMsg]);
     } catch (error) {
       console.error(error);
       setMessages((prev) => [
@@ -68,6 +77,21 @@ const App = () => {
     }
   };
 
+  const getEmotionStyle = (emotion) => {
+    const e = emotion?.toLowerCase();
+    switch (e) {
+      case "joy":
+        return "bg-green-200 text-black";
+      case "sadness":
+        return "bg-blue-200 text-black";
+      case "anger":
+        return "bg-red-200 text-black";
+      case "fear":
+        return "bg-yellow-200 text-black";
+      default:
+        return "bg-white/90 text-slate-800";
+    }
+  };
   return (
     <div className="min-h-screen bg-gradient-to-br from-indigo-500 via-purple-500 to-pink-500 flex flex-col font-sans">
       {/* Header */}
@@ -91,18 +115,18 @@ const App = () => {
             <p>Type your message below and press Enter or click Send</p>
           </div>
         ) : (
-          messages.map((message, index) => (
+          messages.map((msg, index) => (
             <div
               key={index}
               className={`flex ${
-                message.sender === "user" ? "justify-end mb-6" : "mb-6"
+                msg.sender === "user" ? "justify-end mb-6" : "mb-6"
               } gap-4`}
             >
               <div
                 className={`max-w-[70%] p-5 rounded-3xl shadow-2xl ${
-                  message.sender === "user"
+                  msg.sender === "user"
                     ? "bg-gradient-to-r from-indigo-500 to-purple-600 text-white rounded-br-sm"
-                    : "bg-white/90 backdrop-blur-xl text-slate-800 rounded-bl-sm shadow-xl"
+                    : `${getEmotionStyle(msg.emotion)} rounded-bl-sm shadow-xl`
                 }`}
               >
                 <ReactMarkdown
@@ -157,7 +181,7 @@ const App = () => {
                     },
                   }}
                 >
-                  {message.text}
+                  {msg.text}
                 </ReactMarkdown>
               </div>
             </div>
