@@ -56,6 +56,7 @@ const App = () => {
         text: data.reply,
         sender: "ai",
         emotion: data.emotion,
+        risk: data.risk,
       };
 
       setMessages((prev) => [...prev, aiMsg]);
@@ -76,7 +77,18 @@ const App = () => {
       sendMessage();
     }
   };
-
+  const getRiskStyle = (risk) => {
+    switch (risk) {
+      case "self_harm":
+        return "bg-purple-300 text-black border-2 border-purple-600";
+      case "threat":
+        return "bg-red-300 text-black border-2 border-red-600";
+      case "harassment":
+        return "bg-orange-300 text-black border-2 border-orange-600";
+      default:
+        return null;
+    }
+  };
   const getEmotionStyle = (emotion) => {
     const e = emotion?.toLowerCase();
     switch (e) {
@@ -126,7 +138,11 @@ const App = () => {
                 className={`max-w-[70%] p-5 rounded-3xl shadow-2xl ${
                   msg.sender === "user"
                     ? "bg-gradient-to-r from-indigo-500 to-purple-600 text-white rounded-br-sm"
-                    : `${getEmotionStyle(msg.emotion)} rounded-bl-sm shadow-xl`
+                    : `${
+                        msg.risk && msg.risk !== "normal"
+                          ? getRiskStyle(msg.risk)
+                          : getEmotionStyle(msg.emotion)
+                      } rounded-bl-sm shadow-xl`
                 }`}
               >
                 <ReactMarkdown

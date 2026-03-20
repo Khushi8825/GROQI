@@ -7,7 +7,7 @@ import cors from "cors";
 async function detectEmotion(text) {
   try {
     const response = await fetch(
-      "https://api-inference.huggingface.co/models/j-hartmann/emotion-english-distilroberta-base",
+      "https://router.huggingface.co/hf-inference/models/SamLowe/roberta-base-go_emotions",
       {
         method: "POST",
         headers: {
@@ -19,22 +19,52 @@ async function detectEmotion(text) {
     );
 
     const data = await response.json();
+    console.log("TYPE:", typeof data);
+    console.log("DATA FULL:", JSON.stringify(data, null, 2));
+    let emotionsArray = [];
 
-    console.log("🧠 Emotion raw:", data);
-
-    if (!Array.isArray(data) || !Array.isArray(data[0])) {
+    if (Array.isArray(data) && Array.isArray(data[0])) {
+      emotionsArray = data[0];
+    } else if (Array.isArray(data)) {
+      emotionsArray = data;
+    } else if (data.label && data.score) {
+      return data.label.toLowerCase();
+    } else {
       return "neutral";
     }
 
-    let topEmotion = data[0][0];
+    const textLower = text.toLowerCase();
 
-    for (let e of data[0]) {
-      if (e.score > topEmotion.score) {
-        topEmotion = e;
-      }
+    // 🔥 CRITICAL: Suicide detection
+    if (
+      textLower.includes("suicide") ||
+      textLower.includes("kill myself") ||
+      textLower.includes("end my life")
+    ) {
+      return "distress";
     }
 
-    return topEmotion.label;
+    // 🔥 Keyword layer
+    const joyWords = ["happy", "joy", "great", "amazing", "good", "excited"];
+    const sadWords = ["sad", "cry", "depressed", "unhappy", "down"];
+    const angerWords = ["angry", "mad", "furious", "irritated"];
+    const fearWords = ["fear", "scared", "afraid", "anxious"];
+
+    if (joyWords.some((w) => textLower.includes(w))) return "joy";
+    if (sadWords.some((w) => textLower.includes(w))) return "sadness";
+    if (angerWords.some((w) => textLower.includes(w))) return "anger";
+    if (fearWords.some((w) => textLower.includes(w))) return "fear";
+
+    // 🔥 Model logic
+    let topEmotion = emotionsArray.reduce((max, curr) =>
+      curr.score > max.score ? curr : max,
+    );
+
+    if (topEmotion.score >= 0.2) {
+      return topEmotion.label.toLowerCase();
+    }
+
+    return "neutral";
   } catch (error) {
     console.error("Emotion detection error:", error);
     return "neutral";
@@ -80,15 +110,23 @@ console.log("🔑 Groq API Key Loaded:", process.env.GROQ_API_KEY ? "YES" : "NO"
 app.post("/api/chat", async (req, res) => {
   try {
     const { message } = req.body;
-    const emotion = await detectEmotion(message);
-    const risk = await detectRisk(message);
-    console.log("🚨 Risk Level:", risk);
-    console.log("🧠 Detected Emotion:", emotion);
-    console.log("Emotion from backend:", data.emotion);
 
     if (!message) {
       return res.json({ reply: "Message missing" });
     }
+
+    let emotion = await detectEmotion(message);
+    const risk = await detectRisk(message);
+
+    console.log("🚨 Risk Level:", risk);
+    console.log("🧠 Detected Emotion:", emotion);
+
+    // ✅ OPTIONAL OVERRIDE (better UX)
+    if (risk === "self_harm") emotion = "sadness";
+    if (risk === "threat") emotion = "anger";
+    if (risk === "harassment") emotion = "anger";
+
+    // 🚨 RISK HANDLING
     if (risk !== "normal") {
       let safeReply = "";
 
@@ -109,6 +147,8 @@ app.post("/api/chat", async (req, res) => {
         risk,
       });
     }
+
+    // 🤖 AI CALL
     const response = await fetch(
       "https://api.groq.com/openai/v1/chat/completions",
       {
@@ -133,7 +173,7 @@ Instructions:
 - If emotion is fear → reassure and support
 - If emotion is joy → respond cheerfully
 - Otherwise → respond normally
-    `,
+              `,
             },
             {
               role: "user",
@@ -154,7 +194,8 @@ Instructions:
       reply = data.choices[0].message.content;
     }
 
-    res.json({ reply, emotion });
+    // ✅ IMPORTANT FIX: send risk also
+    res.json({ reply, emotion, risk });
   } catch (error) {
     console.error("🔥 Backend error:", error);
     res.status(500).json({ reply: "Server error" });
