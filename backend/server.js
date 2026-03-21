@@ -19,8 +19,8 @@ async function detectEmotion(text) {
     );
 
     const data = await response.json();
-    console.log("TYPE:", typeof data);
-    console.log("DATA FULL:", JSON.stringify(data, null, 2));
+    // console.log("TYPE:", typeof data);
+    // console.log("DATA FULL:", JSON.stringify(data, null, 2));
     let emotionsArray = [];
 
     if (Array.isArray(data) && Array.isArray(data[0])) {
@@ -30,7 +30,7 @@ async function detectEmotion(text) {
     } else if (data.label && data.score) {
       return data.label.toLowerCase();
     } else {
-      return "neutral";
+      return { label: "neutral", confidence: 0.5 };
     }
 
     const textLower = text.toLowerCase();
@@ -41,7 +41,7 @@ async function detectEmotion(text) {
       textLower.includes("kill myself") ||
       textLower.includes("end my life")
     ) {
-      return "distress";
+      return { label: "distress", confidence: 1.0 };
     }
 
     // 🔥 Keyword layer
@@ -50,10 +50,14 @@ async function detectEmotion(text) {
     const angerWords = ["angry", "mad", "furious", "irritated"];
     const fearWords = ["fear", "scared", "afraid", "anxious"];
 
-    if (joyWords.some((w) => textLower.includes(w))) return "joy";
-    if (sadWords.some((w) => textLower.includes(w))) return "sadness";
-    if (angerWords.some((w) => textLower.includes(w))) return "anger";
-    if (fearWords.some((w) => textLower.includes(w))) return "fear";
+    if (joyWords.some((w) => textLower.includes(w)))
+      return { label: "joy", confidence: 1.0 };
+    if (sadWords.some((w) => textLower.includes(w)))
+      return { label: "sadness", confidence: 1.0 };
+    if (angerWords.some((w) => textLower.includes(w)))
+      return { label: "anger", confidence: 1.0 };
+    if (fearWords.some((w) => textLower.includes(w)))
+      return { label: "fear", confidence: 1.0 };
 
     // 🔥 Model logic
     let topEmotion = emotionsArray.reduce((max, curr) =>
@@ -61,13 +65,16 @@ async function detectEmotion(text) {
     );
 
     if (topEmotion.score >= 0.2) {
-      return topEmotion.label.toLowerCase();
+      return {
+        label: topEmotion.label.toLowerCase(),
+        confidence: topEmotion.score,
+      };
     }
 
-    return "neutral";
+    return { label: "neutral", confidence: 0.5 };
   } catch (error) {
     console.error("Emotion detection error:", error);
-    return "neutral";
+    return { label: "neutral", confidence: 0.5 };
   }
 }
 
@@ -79,7 +86,7 @@ async function detectRisk(text) {
     lowerText.includes("kill myself") ||
     lowerText.includes("end my life")
   ) {
-    return "self_harm";
+    return { label: "self_harm", confidence: 0.95 };
   }
 
   if (
@@ -87,7 +94,7 @@ async function detectRisk(text) {
     lowerText.includes("threat") ||
     lowerText.includes("attack")
   ) {
-    return "threat";
+    return { label: "threat", confidence: 0.85 };
   }
 
   if (
@@ -95,10 +102,10 @@ async function detectRisk(text) {
     lowerText.includes("harass") ||
     lowerText.includes("blackmail")
   ) {
-    return "harassment";
+    return { label: "harrasment", confidence: 0.95 };
   }
 
-  return "normal";
+  return { label: "normal", confidence: 0.6 };
 }
 
 const app = express();
@@ -115,11 +122,17 @@ app.post("/api/chat", async (req, res) => {
       return res.json({ reply: "Message missing" });
     }
 
-    let emotion = await detectEmotion(message);
-    const risk = await detectRisk(message);
+    let emotionData = await detectEmotion(message);
+    let riskData = await detectRisk(message);
 
-    console.log("🚨 Risk Level:", risk);
-    console.log("🧠 Detected Emotion:", emotion);
+    let emotion = emotionData.label;
+    let emotionConfidence = emotionData.confidence;
+
+    let risk = riskData.label;
+    let riskConfidence = riskData.confidence;
+
+    console.log("🧠 Emotion:", emotion, "Confidence:", emotionConfidence);
+    console.log("🚨 Risk:", risk, "Confidence:", riskConfidence);
 
     // ✅ OPTIONAL OVERRIDE (better UX)
     if (risk === "self_harm") emotion = "sadness";
@@ -186,7 +199,7 @@ Instructions:
 
     const data = await response.json();
 
-    console.log("🤖 Groq response:", JSON.stringify(data, null, 2));
+    // console.log("🤖 Groq response:", JSON.stringify(data, null, 2));
 
     let reply = "AI did not reply";
 
@@ -195,7 +208,13 @@ Instructions:
     }
 
     // ✅ IMPORTANT FIX: send risk also
-    res.json({ reply, emotion, risk });
+    res.json({
+      reply,
+      emotion,
+      emotionConfidence,
+      risk,
+      riskConfidence,
+    });
   } catch (error) {
     console.error("🔥 Backend error:", error);
     res.status(500).json({ reply: "Server error" });
