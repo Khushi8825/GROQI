@@ -18,7 +18,27 @@ const App = () => {
   useEffect(() => {
     scrollToBottom();
   }, [messages, scrollToBottom]);
+  useEffect(() => {
+    const initUser = async () => {
+      // already logged in user
+      if (localStorage.getItem("user_id")) return;
 
+      try {
+        const res = await fetch("http://localhost:5000/api/auth/anonymous", {
+          method: "POST",
+        });
+
+        const data = await res.json();
+
+        localStorage.setItem("user_id", data.user_id);
+        console.log("🆕 Anonymous user created:", data.user_id);
+      } catch (err) {
+        console.error("User creation failed:", err);
+      }
+    };
+
+    initUser();
+  }, []);
   useEffect(() => {
     if (textareaRef.current) {
       textareaRef.current.style.height = "auto";

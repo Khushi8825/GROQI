@@ -255,6 +255,20 @@ Instructions:
   }
 });
 app.use("/api/chat", chatRoutes);
+app.post("/api/auth/anonymous", async (req, res) => {
+  try {
+    const result = await pool.query(
+      `INSERT INTO users (is_anonymous) 
+       VALUES (true) 
+       RETURNING id`
+    );
+
+    res.json({ user_id: result.rows[0].id });
+  } catch (err) {
+    console.error("Anonymous user error:", err);
+    res.status(500).json({ error: "Failed to create user" });
+  }
+});
 app.listen(5000, () => {
   console.log("🚀 Backend running on http://localhost:5000");
 });
