@@ -3,14 +3,14 @@ import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import { Prism as SyntaxHighlighter } from "react-syntax-highlighter";
 import { oneDark } from "react-syntax-highlighter/dist/esm/styles/prism";
-
+import { useNavigate } from "react-router-dom";
 const App = () => {
   const [messages, setMessages] = useState([]);
   const [inputValue, setInputValue] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const messagesEndRef = useRef(null);
   const textareaRef = useRef(null);
-
+  const navigate = useNavigate();
   const scrollToBottom = useCallback(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, []);
@@ -133,7 +133,7 @@ const App = () => {
       <div className="absolute top-4 left-4 z-50">
         {!localStorage.getItem("token") ? (
           <button
-            onClick={() => (window.location.href = "/login")}
+            onClick={() => navigate("/login")}
             className="bg-white px-4 py-2 rounded-lg shadow hover:scale-105 transition"
           >
             Login
