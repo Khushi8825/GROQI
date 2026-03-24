@@ -3,6 +3,8 @@ dotenv.config();
 
 import express from "express";
 import cors from "cors";
+import chatRoutes from "./routes/chatRoutes.js";
+import { pool } from "./db.js";
 
 async function detectEmotion(text) {
   try {
@@ -102,7 +104,7 @@ async function detectRisk(text) {
     lowerText.includes("harass") ||
     lowerText.includes("blackmail")
   ) {
-    return { label: "harrasment", confidence: 0.95 };
+    return { label: "harassment", confidence: 0.95 };
   }
 
   return { label: "normal", confidence: 0.6 };
@@ -116,7 +118,7 @@ console.log("🔑 Groq API Key Loaded:", process.env.GROQ_API_KEY ? "YES" : "NO"
 
 app.post("/api/chat", async (req, res) => {
   try {
-    const { message } = req.body;
+    const { message, user_id } = req.body;
 
     if (!message) {
       return res.json({ reply: "Message missing" });
@@ -153,7 +155,22 @@ app.post("/api/chat", async (req, res) => {
         safeReply =
           "Harassment or abuse is not okay. If you're facing this, consider reporting it or seeking help.";
       }
-
+      if (user_id) {
+        await pool.query(
+          `INSERT INTO chats 
+       (user_id, user_message, bot_reply, emotion, emotion_confidence, risk_level, risk_confidence)
+       VALUES ($1, $2, $3, $4, $5, $6, $7)`,
+          [
+            user_id,
+            message,
+            safeReply,
+            emotion,
+            emotionConfidence,
+            risk,
+            riskConfidence,
+          ],
+        );
+      }
       return res.json({
         reply: safeReply,
         emotion,
@@ -208,6 +225,23 @@ Instructions:
     }
 
     // ✅ IMPORTANT FIX: send risk also
+    if (!user_id) {
+      return res.status(400).json({ reply: "User ID missing" });
+    }
+    await pool.query(
+      `INSERT INTO chats 
+   (user_id, user_message, bot_reply, emotion, emotion_confidence, risk_level, risk_confidence)
+   VALUES ($1, $2, $3, $4, $5, $6, $7)`,
+      [
+        user_id, // ⚠️ IMPORTANT
+        message,
+        reply,
+        emotion,
+        emotionConfidence,
+        risk,
+        riskConfidence,
+      ],
+    );
     res.json({
       reply,
       emotion,
@@ -220,7 +254,7 @@ Instructions:
     res.status(500).json({ reply: "Server error" });
   }
 });
-
+app.use("/api/chat", chatRoutes);
 app.listen(5000, () => {
   console.log("🚀 Backend running on http://localhost:5000");
 });
