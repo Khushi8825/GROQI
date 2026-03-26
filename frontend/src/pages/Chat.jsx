@@ -206,8 +206,8 @@ const Chat = () => {
             {showDropdown && (
               <div className="absolute mt-2 w-40 bg-white rounded-lg shadow-lg left-0 z-50">
                 <button
-                  // onClick={() => navigate("/profile")}
-                  onClick={() => alert("Profile page coming soon")}
+                  onClick={() => navigate("/profile")}
+                  // onClick={() => alert("Profile page coming soon")}
                   className="block w-full text-left px-4 py-2 hover:bg-gray-100"
                 >
                   Profile
