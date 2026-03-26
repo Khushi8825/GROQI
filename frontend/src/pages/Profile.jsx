@@ -7,7 +7,7 @@ export default function Profile() {
   const navigate = useNavigate();
   const [showOptions, setShowOptions] = useState(false);
   const fileInputRef = useRef(null); // ✅ FIXED
-
+  const [analytics, setAnalytics] = useState(null);
   // 🔹 Load user data
   useEffect(() => {
     const fetchUser = async () => {
@@ -89,7 +89,25 @@ export default function Profile() {
 
     return () => window.removeEventListener("click", close);
   }, []);
+  useEffect(() => {
+    const fetchAnalytics = async () => {
+      const user_id = localStorage.getItem("user_id");
+      if (!user_id) return;
 
+      try {
+        const res = await fetch(
+          `http://localhost:5000/api/chat/analytics/${user_id}`,
+        );
+
+        const data = await res.json();
+        setAnalytics(data);
+      } catch (err) {
+        console.error("Analytics error:", err);
+      }
+    };
+
+    fetchAnalytics();
+  }, []);
   return (
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-indigo-500 via-purple-500 to-pink-500">
       <div className="bg-white p-8 rounded-2xl shadow-2xl w-96 text-center">
@@ -180,7 +198,43 @@ export default function Profile() {
         ) : (
           <p>Loading...</p>
         )}
+        {analytics && (
+          <div className="mt-6 text-left">
+            <h3 className="text-lg font-semibold mb-2">📊 Analytics</h3>
 
+            <div className="bg-gray-100 p-2 rounded mb-2">
+              <b>Total Messages:</b> {analytics.total}
+            </div>
+
+            <div className="bg-gray-100 p-2 rounded mb-2">
+              <b>😊 Joy:</b> {analytics.emotions.joy}
+            </div>
+
+            <div className="bg-gray-100 p-2 rounded mb-2">
+              <b>😢 Sadness:</b> {analytics.emotions.sadness}
+            </div>
+
+            <div className="bg-gray-100 p-2 rounded mb-2">
+              <b>😡 Anger:</b> {analytics.emotions.anger}
+            </div>
+
+            <div className="bg-gray-100 p-2 rounded mb-2">
+              <b>😨 Fear:</b> {analytics.emotions.fear}
+            </div>
+
+            <div className="bg-gray-100 p-2 rounded mb-2">
+              <b>🚨 Self Harm:</b> {analytics.risks.self_harm}
+            </div>
+
+            <div className="bg-gray-100 p-2 rounded mb-2">
+              <b>⚠️ Threat:</b> {analytics.risks.threat}
+            </div>
+
+            <div className="bg-gray-100 p-2 rounded mb-2">
+              <b>🟠 Harassment:</b> {analytics.risks.harassment}
+            </div>
+          </div>
+        )}
         <button
           onClick={() => navigate("/")}
           className="mt-6 bg-indigo-500 text-white px-4 py-2 rounded"

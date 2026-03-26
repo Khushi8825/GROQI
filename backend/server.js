@@ -370,7 +370,7 @@ app.get("/api/auth/me", async (req, res) => {
 
     const result = await pool.query(
       "SELECT name, email, contact_no FROM users WHERE id = $1",
-      [decoded.id]
+      [decoded.id],
     );
 
     if (result.rows.length === 0) {
@@ -381,6 +381,54 @@ app.get("/api/auth/me", async (req, res) => {
   } catch (err) {
     console.error("Profile error:", err);
     res.status(500).json({ error: "Server error" });
+  }
+});
+app.get("/api/chat/analytics/:user_id", async (req, res) => {
+  try {
+    const { user_id } = req.params;
+
+    const result = await pool.query(
+      `SELECT emotion, risk_level FROM chats WHERE user_id = $1`,
+      [user_id],
+    );
+
+    const data = result.rows;
+
+    let total = data.length;
+
+    let emotions = {
+      joy: 0,
+      sadness: 0,
+      anger: 0,
+      fear: 0,
+      neutral: 0,
+    };
+
+    let risks = {
+      self_harm: 0,
+      threat: 0,
+      harassment: 0,
+      normal: 0,
+    };
+
+    data.forEach((row) => {
+      if (emotions[row.emotion] !== undefined) {
+        emotions[row.emotion]++;
+      }
+
+      if (risks[row.risk_level] !== undefined) {
+        risks[row.risk_level]++;
+      }
+    });
+
+    res.json({
+      total,
+      emotions,
+      risks,
+    });
+  } catch (err) {
+    console.error("Analytics error:", err);
+    res.status(500).json({ error: "Failed analytics" });
   }
 });
 app.listen(5000, () => {
