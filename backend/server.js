@@ -339,6 +339,23 @@ app.post("/api/auth/login", async (req, res) => {
     res.status(500).json({ error: "Server error" });
   }
 });
+app.get("/api/chat/history/:user_id", async (req, res) => {
+  try {
+    const { user_id } = req.params;
+
+    const result = await pool.query(
+      `SELECT * FROM chats 
+       WHERE user_id = $1 
+       ORDER BY created_at ASC`,
+      [user_id],
+    );
+
+    res.json(result.rows);
+  } catch (err) {
+    console.error("History error:", err);
+    res.status(500).json({ error: "Failed to fetch history" });
+  }
+});
 app.listen(5000, () => {
   console.log("🚀 Backend running on http://localhost:5000");
 });

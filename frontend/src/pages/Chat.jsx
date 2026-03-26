@@ -19,25 +19,53 @@ const Chat = () => {
     scrollToBottom();
   }, [messages, scrollToBottom]);
   useEffect(() => {
-    const initUser = async () => {
-      // already logged in user
-      if (localStorage.getItem("user_id")) return;
+    const initAndLoad = async () => {
+      let user_id = localStorage.getItem("user_id");
 
       try {
-        const res = await fetch("http://localhost:5000/api/auth/anonymous", {
-          method: "POST",
-        });
+        // 🔹 Step 1: create user if not exists
+        if (!user_id) {
+          const res = await fetch("http://localhost:5000/api/auth/anonymous", {
+            method: "POST",
+          });
+
+          const data = await res.json();
+          user_id = data.user_id;
+
+          localStorage.setItem("user_id", user_id);
+          console.log("🆕 Anonymous user created:", user_id);
+        }
+
+        // 🔹 Step 2: load chat history
+        const res = await fetch(
+          `http://localhost:5000/api/chat/history/${user_id}`,
+        );
 
         const data = await res.json();
 
-        localStorage.setItem("user_id", data.user_id);
-        console.log("🆕 Anonymous user created:", data.user_id);
+        const formatted = [];
+
+        data.forEach((chat) => {
+          formatted.push({
+            text: chat.user_message,
+            sender: "user",
+          });
+
+          formatted.push({
+            text: chat.bot_reply,
+            sender: "ai",
+            emotion: chat.emotion,
+            risk: chat.risk_level,
+          });
+        });
+
+        setMessages(formatted);
       } catch (err) {
-        console.error("User creation failed:", err);
+        console.error("Init/History error:", err);
       }
     };
 
-    initUser();
+    initAndLoad();
   }, []);
   useEffect(() => {
     if (textareaRef.current) {
