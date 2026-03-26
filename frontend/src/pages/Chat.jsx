@@ -8,6 +8,7 @@ const Chat = () => {
   const [messages, setMessages] = useState([]);
   const [inputValue, setInputValue] = useState("");
   const [isLoading, setIsLoading] = useState(false);
+  const [showDropdown, setShowDropdown] = useState(false);
   const messagesEndRef = useRef(null);
   const textareaRef = useRef(null);
   const navigate = useNavigate();
@@ -76,6 +77,12 @@ const Chat = () => {
       )}px`;
     }
   }, [inputValue]);
+  useEffect(() => {
+    const handleClickOutside = () => setShowDropdown(false);
+    window.addEventListener("click", handleClickOutside);
+
+    return () => window.removeEventListener("click", handleClickOutside);
+  }, []);
 
   const sendMessage = async () => {
     const message = inputValue.trim();
@@ -155,6 +162,15 @@ const Chat = () => {
         return "bg-white/90 text-slate-800";
     }
   };
+  const handleLogout = () => {
+    localStorage.removeItem("token");
+    localStorage.removeItem("user_id");
+
+    setShowDropdown(false); // 👈 ADD THIS LINE
+
+    navigate("/login");
+  };
+  const profileImage = localStorage.getItem("profile_image");
   return (
     <div className="min-h-screen bg-gradient-to-br from-indigo-500 via-purple-500 to-pink-500 flex flex-col font-sans">
       {/* Header */}
@@ -167,11 +183,44 @@ const Chat = () => {
             Login
           </button>
         ) : (
-          <div
-            onClick={() => navigate("/login")}
-            className="w-10 h-10 rounded-full bg-white flex items-center justify-center cursor-pointer shadow hover:scale-105 transition"
-          >
-            👤
+          <div className="relative">
+            <div
+              onClick={(e) => {
+                e.stopPropagation();
+                setShowDropdown((prev) => !prev);
+              }}
+              className="w-10 h-10 rounded-full bg-white flex items-center justify-center cursor-pointer shadow hover:scale-105 transition overflow-hidden"
+            >
+              {profileImage ? (
+                <img
+                  src={profileImage}
+                  alt="profile"
+                  className="w-full h-full object-cover"
+                />
+              ) : (
+                "👤"
+              )}
+            </div>
+
+            {/* 🔽 Dropdown */}
+            {showDropdown && (
+              <div className="absolute mt-2 w-40 bg-white rounded-lg shadow-lg left-0 z-50">
+                <button
+                  // onClick={() => navigate("/profile")}
+                  onClick={() => alert("Profile page coming soon")}
+                  className="block w-full text-left px-4 py-2 hover:bg-gray-100"
+                >
+                  Profile
+                </button>
+
+                <button
+                  onClick={handleLogout}
+                  className="block w-full text-left px-4 py-2 hover:bg-gray-100 text-red-500"
+                >
+                  Logout
+                </button>
+              </div>
+            )}
           </div>
         )}
       </div>
