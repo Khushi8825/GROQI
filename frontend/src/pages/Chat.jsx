@@ -139,7 +139,10 @@ const Chat = () => {
             Login
           </button>
         ) : (
-          <div className="w-10 h-10 rounded-full bg-white flex items-center justify-center cursor-pointer shadow">
+          <div
+            onClick={() => navigate("/login")}
+            className="w-10 h-10 rounded-full bg-white flex items-center justify-center cursor-pointer shadow hover:scale-105 transition"
+          >
             👤
           </div>
         )}
