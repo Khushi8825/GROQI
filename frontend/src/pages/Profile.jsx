@@ -92,14 +92,45 @@ export default function Profile() {
   useEffect(() => {
     const fetchAnalytics = async () => {
       const user_id = localStorage.getItem("user_id");
+      const token = localStorage.getItem("token");
+
+      console.log("USER ID:", user_id);
+      console.log("TOKEN:", token);
+
       if (!user_id) return;
+
+      // ❗ IMPORTANT: do not call API without token
+      if (!token) {
+        console.log("No token → user not logged in");
+        return;
+      }
 
       try {
         const res = await fetch(
           `http://localhost:5000/api/chat/analytics/${user_id}`,
+          {
+            method: "GET",
+            headers: {
+              "Content-Type": "application/json",
+              Authorization: `Bearer ${token}`, // 🔥 THIS MUST BE PRESENT
+            },
+          },
         );
 
+        console.log("STATUS:", res.status);
+
+        if (res.status === 401) {
+          console.log("Unauthorized → token rejected by backend");
+          return;
+        }
+
         const data = await res.json();
+
+        if (!data || !data.emotions) {
+          console.error("Invalid data:", data);
+          return;
+        }
+
         setAnalytics(data);
       } catch (err) {
         console.error("Analytics error:", err);

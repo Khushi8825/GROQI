@@ -37,7 +37,13 @@ export default function Login() {
       localStorage.setItem("user_id", data.user.id);
 
       alert("Login successful ✅");
+            const userId = data.user.id;
 
+      await fetch(`http://localhost:5000/api/chat/history/${userId}`, {
+        headers: {
+          Authorization: `Bearer ${data.token}`,
+        },
+      });
       navigate("/"); // go back to chat
     } catch (err) {
       console.error(err);

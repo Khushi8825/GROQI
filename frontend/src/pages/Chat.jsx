@@ -38,11 +38,30 @@ const Chat = () => {
         }
 
         // 🔹 Step 2: load chat history
+        // 🔹 Step 2: load chat history
+        const token = localStorage.getItem("token");
+
+        if (!token) {
+          console.log("No token → skipping history fetch (anonymous mode)");
+          return;
+        }
+
         const res = await fetch(
           `http://localhost:5000/api/chat/history/${user_id}`,
+          {
+            headers: {
+              Authorization: `Bearer ${token}`,
+            },
+          },
         );
 
         const data = await res.json();
+
+        // ✅ safety check
+        if (!Array.isArray(data)) {
+          console.error("Invalid history data:", data);
+          return;
+        }
 
         const formatted = [];
 

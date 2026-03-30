@@ -7,7 +7,8 @@ import chatRoutes from "./routes/chatRoutes.js";
 import { pool } from "./db.js";
 import bcrypt from "bcrypt";
 import jwt from "jsonwebtoken";
-
+import authRoutes from "./routes/authRoutes.js";
+import { authMiddleware } from "./middleware/authMiddleware.js";
 async function detectEmotion(text) {
   try {
     const response = await fetch(
@@ -120,8 +121,27 @@ console.log("🔑 Groq API Key Loaded:", process.env.GROQ_API_KEY ? "YES" : "NO"
 
 app.post("/api/chat", async (req, res) => {
   try {
-    const { message, user_id } = req.body;
+    const { message } = req.body;
 
+    let user_id = null;
+
+    // 🔐 Check if user is logged in (JWT)
+    const authHeader = req.headers.authorization;
+
+    if (authHeader && authHeader.startsWith("Bearer ")) {
+      try {
+        const token = authHeader.split(" ")[1];
+        const decoded = jwt.verify(token, process.env.JWT_SECRET);
+        user_id = decoded.id;
+      } catch (err) {
+        console.log("Invalid token, using anonymous user");
+      }
+    }
+
+    // 👤 Fallback to anonymous user
+    if (!user_id) {
+      user_id = req.body.user_id;
+    }
     if (!message) {
       return res.json({ reply: "Message missing" });
     }
@@ -325,7 +345,9 @@ app.post("/api/auth/login", async (req, res) => {
       return res.status(400).json({ error: "Invalid password" });
     }
 
-    const token = jwt.sign({ id: user.id }, "secret_key", { expiresIn: "7d" });
+    const token = jwt.sign({ id: user.id }, process.env.JWT_SECRET, {
+      expiresIn: "7d",
+    });
 
     res.json({
       token,
@@ -339,7 +361,7 @@ app.post("/api/auth/login", async (req, res) => {
     res.status(500).json({ error: "Server error" });
   }
 });
-app.get("/api/chat/history/:user_id", async (req, res) => {
+app.get("/api/chat/history/:user_id", authMiddleware, async (req, res) => {
   try {
     const { user_id } = req.params;
 
@@ -356,21 +378,11 @@ app.get("/api/chat/history/:user_id", async (req, res) => {
     res.status(500).json({ error: "Failed to fetch history" });
   }
 });
-app.get("/api/auth/me", async (req, res) => {
+app.get("/api/auth/me", authMiddleware, async (req, res) => {
   try {
-    const authHeader = req.headers.authorization;
-
-    if (!authHeader) {
-      return res.status(401).json({ error: "No token provided" });
-    }
-
-    const token = authHeader.split(" ")[1];
-
-    const decoded = jwt.verify(token, "secret_key");
-
     const result = await pool.query(
       "SELECT name, email, contact_no FROM users WHERE id = $1",
-      [decoded.id],
+      [req.user.id],
     );
 
     if (result.rows.length === 0) {
@@ -383,10 +395,16 @@ app.get("/api/auth/me", async (req, res) => {
     res.status(500).json({ error: "Server error" });
   }
 });
-app.get("/api/chat/analytics/:user_id", async (req, res) => {
+app.get("/api/chat/analytics/:user_id", authMiddleware, async (req, res) => {
   try {
     const { user_id } = req.params;
+    if (!req.user) {
+      return res.status(401).json({ error: "Unauthorized" });
+    }
 
+    if (req.user.id != user_id) {
+      return res.status(403).json({ error: "Access denied" });
+    }
     const result = await pool.query(
       `SELECT emotion, risk_level FROM chats WHERE user_id = $1`,
       [user_id],
@@ -431,6 +449,11 @@ app.get("/api/chat/analytics/:user_id", async (req, res) => {
     res.status(500).json({ error: "Failed analytics" });
   }
 });
+
+app.use(express.json());
+
+// auth routes
+app.use("/api/auth", authRoutes);
 app.listen(5000, () => {
   console.log("🚀 Backend running on http://localhost:5000");
 });
