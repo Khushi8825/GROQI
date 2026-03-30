@@ -1,14 +1,17 @@
 import express from "express";
+import {
+  register,
+  login,
+  getProfile,
+  createAnonymousUser,
+} from "../controller/authController.js";
+import { authMiddleware } from "../middleware/authMiddleware.js";
 
 const router = express.Router();
 
-// your routes
-router.post("/register", (req, res) => {
-  res.send("Register route");
-});
-
-router.post("/login", (req, res) => {
-  res.send("Login route");
-});
+router.post("/register", register);
+router.post("/login", login);
+router.post("/anonymous", createAnonymousUser);
+router.get("/me", authMiddleware, getProfile);
 
 export default router;
