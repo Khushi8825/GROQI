@@ -181,14 +181,21 @@ const Chat = () => {
         return "bg-white/90 text-slate-800";
     }
   };
-  const handleLogout = () => {
-    localStorage.removeItem("token");
-    localStorage.removeItem("user_id");
+ const handleLogout = async () => {
+  localStorage.removeItem("token");
 
-    setShowDropdown(false); // 👈 ADD THIS LINE
+  // create new anonymous user
+  const res = await fetch("http://localhost:5000/api/auth/anonymous", {
+    method: "POST",
+  });
 
-    navigate("/login");
-  };
+  const data = await res.json();
+  localStorage.setItem("user_id", data.user_id);
+  setMessages([]);
+  setShowDropdown(false);
+  // redirect
+  navigate("/");
+};
   const profileImage = localStorage.getItem("profile_image");
   return (
     <div className="min-h-screen bg-gradient-to-br from-indigo-500 via-purple-500 to-pink-500 flex flex-col font-sans">
