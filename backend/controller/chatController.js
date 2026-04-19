@@ -2,7 +2,78 @@ import { pool } from "../db.js";
 import jwt from "jsonwebtoken";
 
 // 👉 paste your detectEmotion & detectRisk functions here (same as before)
+const detectEmotion = (text) => {
+    const emotions = {
+        happy: ["happy", "joy", "excited", "great", "amazing", "love"],
+        sad: ["sad", "down", "unhappy", "cry", "depressed", "lonely"],
+        angry: ["angry", "mad", "furious", "hate", "irritated"],
+        anxious: ["anxious", "worried", "scared", "nervous", "panic"],
+    };
 
+    let scores = {
+        happy: 0,
+        sad: 0,
+        angry: 0,
+        anxious: 0,
+    };
+
+    const words = text.toLowerCase().split(/\W+/);
+
+    words.forEach(word => {
+        for (let emotion in emotions) {
+            if (emotions[emotion].includes(word)) {
+                scores[emotion]++;
+            }
+        }
+    });
+
+    // find max emotion
+    let detectedEmotion = "neutral";
+    let maxScore = 0;
+
+    for (let emotion in scores) {
+        if (scores[emotion] > maxScore) {
+            maxScore = scores[emotion];
+            detectedEmotion = emotion;
+        }
+    }
+
+    // intensity normalize (0–1)
+    const intensity = Math.min(maxScore / words.length, 1);
+
+    return {
+        emotion: detectedEmotion,
+        intensity: Number(intensity.toFixed(2)),
+    };
+};
+
+const detectRisk = (text) => {
+    const highRiskWords = [
+        "suicide", "kill myself", "end my life", "die", "want to die"
+    ];
+
+    const mediumRiskWords = [
+        "hopeless", "worthless", "no reason to live", "tired of life"
+    ];
+
+    const lowerText = text.toLowerCase();
+
+    let riskLevel = "low";
+
+    for (let word of highRiskWords) {
+        if (lowerText.includes(word)) {
+            return { risk: "high" };
+        }
+    }
+
+    for (let word of mediumRiskWords) {
+        if (lowerText.includes(word)) {
+            riskLevel = "medium";
+        }
+    }
+
+    return { risk: riskLevel };
+};
 export const handleChat = async (req, res) => {
   try {
     const { message } = req.body;
@@ -29,58 +100,79 @@ export const handleChat = async (req, res) => {
       return res.json({ reply: "Message missing" });
     }
 
-    // ⚠️ KEEP YOUR FULL EXISTING CHAT LOGIC HERE (no change)
+    // 🔥 STEP 1: Detect emotion & risk
+    const { emotion, intensity } = detectEmotion(message);
+    const { risk } = detectRisk(message);
+
+    // 🔥 STEP 2: Consoling message logic
+    const generateConsolingMessage = (emotion, risk) => {
+      if (risk === "high") {
+        return "I'm really sorry you're feeling this way. You're not alone. Please consider talking to someone you trust or a professional. I'm here with you 🤍";
+      }
+
+      if (emotion === "sad") {
+        return "I can sense that you're feeling low. Do you want to talk about it?";
+      }
+
+      if (emotion === "angry") {
+        return "It seems you're feeling frustrated. Take a deep breath, I'm here to listen.";
+      }
+
+      if (emotion === "anxious") {
+        return "I understand this might feel overwhelming. Let's take it step by step.";
+      }
+
+      return null;
+    };
+
+    const isHighEmotion = intensity > 0.6;
+    const isHighRisk = risk === "high";
+
+    let supportMessage = null;
+
+    if (isHighEmotion || isHighRisk) {
+      supportMessage = generateConsolingMessage(emotion, risk);
+    }
+
+    // 🔥 STEP 3: AI Response (IMPORTANT)
+    const aiPrompt = `
+User message: "${message}"
+Emotion: ${emotion} (intensity: ${intensity})
+Risk: ${risk}
+
+Reply in a supportive and empathetic tone.
+    `;
+
+    const aiReply = await getAIResponse(aiPrompt); // 👈 make sure this exists
+
+    // 🔥 STEP 4: Combine messages
+    let finalReply = "";
+
+    if (supportMessage) {
+      finalReply = supportMessage + "\n\n" + aiReply;
+    } else {
+      finalReply = aiReply;
+    }
+
+    // 🔥 STEP 5: Save to DB
+    await pool.query(
+      `INSERT INTO chats (user_id, message, reply, emotion, intensity, risk_level)
+       VALUES ($1, $2, $3, $4, $5, $6)`,
+      [user_id, message, finalReply, emotion, intensity, risk]
+    );
+
+    // 🔥 STEP 6: Send response
+    res.json({
+      reply: finalReply,
+      meta: {
+        emotion,
+        intensity,
+        risk,
+      },
+    });
 
   } catch (error) {
     console.error("Chat error:", error);
     res.status(500).json({ reply: "Server error" });
-  }
-};
-
-export const getHistory = async (req, res) => {
-  try {
-    const { user_id } = req.params;
-
-    const result = await pool.query(
-      `SELECT * FROM chats WHERE user_id = $1 ORDER BY created_at ASC`,
-      [user_id]
-    );
-
-    res.json(result.rows);
-  } catch (err) {
-    res.status(500).json({ error: "Failed to fetch history" });
-  }
-};
-
-export const getAnalytics = async (req, res) => {
-  try {
-    const { user_id } = req.params;
-
-    if (req.user.id != user_id) {
-      return res.status(403).json({ error: "Access denied" });
-    }
-
-    const result = await pool.query(
-      `SELECT emotion, risk_level FROM chats WHERE user_id = $1`,
-      [user_id]
-    );
-
-    const data = result.rows;
-
-    let emotions = { joy: 0, sadness: 0, anger: 0, fear: 0, neutral: 0 };
-    let risks = { self_harm: 0, threat: 0, harassment: 0, normal: 0 };
-
-    data.forEach((row) => {
-      if (emotions[row.emotion] !== undefined) emotions[row.emotion]++;
-      if (risks[row.risk_level] !== undefined) risks[row.risk_level]++;
-    });
-
-    res.json({
-      total: data.length,
-      emotions,
-      risks,
-    });
-  } catch (err) {
-    res.status(500).json({ error: "Failed analytics" });
   }
 };
