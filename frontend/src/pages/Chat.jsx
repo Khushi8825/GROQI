@@ -127,15 +127,15 @@ const Chat = () => {
       });
 
       const data = await response.json();
-
+      console.log("🔥 API RESPONSE:", data);
       // ✅ Add AI message WITH emotion
       const aiMsg = {
         text: data.reply,
         sender: "ai",
-        emotion: data.meta?.emotion,
-        risk: data.meta?.risk,
+        emotion: data.emotion,
+        risk: data.risk,
       };
-
+      
       setMessages((prev) => [...prev, aiMsg]);
     } catch (error) {
       console.error(error);
@@ -167,11 +167,12 @@ const Chat = () => {
     }
   };
   const getEmotionStyle = (emotion) => {
+    console.log("🎨 Emotion received:", emotion);
     const e = emotion?.toLowerCase();
     switch (e) {
       case "joy":
         return "bg-green-200 text-black";
-      case "sadness":
+      case "sad":
         return "bg-blue-200 text-black";
       case "anger":
         return "bg-red-200 text-black";
@@ -270,8 +271,9 @@ const Chat = () => {
             <p>Type your message below and press Enter or click Send</p>
           </div>
         ) : (
-          messages.map((msg, index) => (
-            <div
+          messages.map((msg, index) => {
+            console.log("🎯 RENDER MSG:", msg);
+            return(<div
               key={index}
               className={`flex ${
                 msg.sender === "user" ? "justify-end mb-6" : "mb-6"
@@ -282,7 +284,7 @@ const Chat = () => {
                   msg.sender === "user"
                     ? "bg-gradient-to-r from-indigo-500 to-purple-600 text-white rounded-br-sm"
                     : `${
-                        msg.risk && msg.risk !== "normal"
+                        msg.risk && msg.risk !== "low"
                           ? getRiskStyle(msg.risk)
                           : getEmotionStyle(msg.emotion)
                       } rounded-bl-sm shadow-xl`
@@ -344,7 +346,7 @@ const Chat = () => {
                 </ReactMarkdown>
               </div>
             </div>
-          ))
+          )})
         )}
 
         {/* Loading Indicator */}
