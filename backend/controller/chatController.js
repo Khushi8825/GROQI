@@ -15,9 +15,9 @@ export const detectEmotion = async (text) => {
         },
       },
     );
-   
+
     const data = response.data;
-    
+
     // ✅ Handle different response formats safely
     let emotionsArray = [];
 
@@ -80,7 +80,7 @@ export const detectEmotion = async (text) => {
     };
   } catch (error) {
     console.error("Emotion detection error:", error.message);
-     console.error("HF ERROR FULL:", error.response?.data || error.message);
+    console.error("HF ERROR FULL:", error.response?.data || error.message);
     return {
       emotion: "neutral",
       intensity: 0,
@@ -145,7 +145,7 @@ const getAIResponse = async (prompt) => {
           Authorization: `Bearer ${process.env.GROQ_API_KEY}`,
           "Content-Type": "application/json",
         },
-      }
+      },
     );
 
     return response.data.choices[0].message.content;
@@ -208,7 +208,7 @@ Reply in a supportive tone.
         intensity,
         risk,
         0.9, // default risk confidence
-      ]
+      ],
     );
 
     res.json({
@@ -224,7 +224,6 @@ Reply in a supportive tone.
     res.status(500).json({ reply: "Server error" });
   }
 };
-
 
 export const getHistory = async (req, res) => {
   try {
@@ -242,7 +241,7 @@ export const getHistory = async (req, res) => {
        FROM chats
        WHERE user_id = $1
        ORDER BY created_at ASC`,
-      [user_id]
+      [user_id],
     );
 
     res.json(result.rows);
@@ -261,7 +260,7 @@ export const getAnalytics = async (req, res) => {
        FROM chats
        WHERE user_id = $1
        GROUP BY emotion`,
-      [user_id]
+      [user_id],
     );
 
     // 🔥 Risk Distribution
@@ -270,7 +269,7 @@ export const getAnalytics = async (req, res) => {
        FROM chats
        WHERE user_id = $1
        GROUP BY risk_level`,
-      [user_id]
+      [user_id],
     );
 
     // 🔥 Daily Messages
@@ -280,24 +279,56 @@ export const getAnalytics = async (req, res) => {
        WHERE user_id = $1
        GROUP BY date
        ORDER BY date ASC`,
-      [user_id]
+      [user_id],
     );
 
-    // 🔥 Avg Emotion Intensity
+    // 🔥 Avg Emotion
     const avgEmotion = await pool.query(
       `SELECT AVG(emotion_confidence) as avg_emotion 
        FROM chats
        WHERE user_id = $1`,
-      [user_id]
+      [user_id],
     );
 
-    res.json({
-      emotions: emotionData.rows,
-      risk: riskData.rows,
-      daily: dailyData.rows,
-      avgEmotion: avgEmotion.rows[0].avg_emotion,
+    // ✅ CONVERT emotion array → object
+    const emotionMap = {
+      joy: 0,
+      sadness: 0,
+      anger: 0,
+      fear: 0,
+      neutral: 0,
+    };
+
+    emotionData.rows.forEach((item) => {
+      emotionMap[item.emotion] = Number(item.count);
     });
 
+    // ✅ CONVERT risk array → object
+    const riskMap = {
+      self_harm: 0,
+      harassment: 0,
+      normal: 0,
+    };
+
+    riskData.rows.forEach((item) => {
+      let key = item.risk_level;
+
+      if (key === "high") key = "self_harm";
+      else if (key === "medium") key = "harassment";
+      else key = "normal";
+
+      riskMap[key] = Number(item.count);
+    });
+    res.json({
+      emotions: emotionMap, // 👈 now object
+      risk: riskMap, // 👈 now object
+      daily: dailyData.rows,
+      avgEmotion: avgEmotion.rows[0]?.avg_emotion || 0,
+    });
+    console.log("FINAL RESPONSE:", {
+      emotions: emotionMap,
+      risk: riskMap,
+    });
   } catch (error) {
     console.error("Analytics error:", error);
     res.status(500).json({ error: "Failed to fetch analytics" });

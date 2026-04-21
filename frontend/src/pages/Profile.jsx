@@ -254,15 +254,15 @@ export default function Profile() {
             </div>
 
             <div className="bg-gray-100 p-2 rounded mb-2">
-              <b>🚨 Self Harm:</b> {analytics.risks.self_harm}
+              <b>🚨 Self Harm:</b> {analytics.risk.self_harm}
             </div>
 
             <div className="bg-gray-100 p-2 rounded mb-2">
-              <b>⚠️ Threat:</b> {analytics.risks.threat}
+              <b>⚠️ Threat:</b> {analytics.risk.threat}
             </div>
 
             <div className="bg-gray-100 p-2 rounded mb-2">
-              <b>🟠 Harassment:</b> {analytics.risks.harassment}
+              <b>🟠 Harassment:</b> {analytics.risk.harassment}
             </div>
           </div>
         )}
