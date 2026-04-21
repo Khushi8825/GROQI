@@ -121,7 +121,7 @@ const Chat = () => {
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
-          message,
+          user_message: message,
           user_id: localStorage.getItem("user_id"),
         }),
       });
@@ -132,8 +132,8 @@ const Chat = () => {
       const aiMsg = {
         text: data.reply,
         sender: "ai",
-        emotion: data.emotion,
-        risk: data.risk,
+        emotion: data.meta?.emotion,
+        risk: data.meta?.risk,
       };
 
       setMessages((prev) => [...prev, aiMsg]);
@@ -181,21 +181,21 @@ const Chat = () => {
         return "bg-white/90 text-slate-800";
     }
   };
- const handleLogout = async () => {
-  localStorage.removeItem("token");
+  const handleLogout = async () => {
+    localStorage.removeItem("token");
 
-  // create new anonymous user
-  const res = await fetch("http://localhost:5000/api/auth/anonymous", {
-    method: "POST",
-  });
+    // create new anonymous user
+    const res = await fetch("http://localhost:5000/api/auth/anonymous", {
+      method: "POST",
+    });
 
-  const data = await res.json();
-  localStorage.setItem("user_id", data.user_id);
-  setMessages([]);
-  setShowDropdown(false);
-  // redirect
-  navigate("/");
-};
+    const data = await res.json();
+    localStorage.setItem("user_id", data.user_id);
+    setMessages([]);
+    setShowDropdown(false);
+    // redirect
+    navigate("/");
+  };
   const profileImage = localStorage.getItem("profile_image");
   return (
     <div className="min-h-screen bg-gradient-to-br from-indigo-500 via-purple-500 to-pink-500 flex flex-col font-sans">

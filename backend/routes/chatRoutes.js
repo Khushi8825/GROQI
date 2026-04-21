@@ -9,7 +9,7 @@ import { authMiddleware } from "../middleware/authMiddleware.js";
 const router = express.Router();
 
 router.post("/", handleChat);
-router.get("/history/:user_id", authMiddleware, getHistory);
-router.get("/analytics/:user_id", authMiddleware, getAnalytics);
+router.get("/history/:user_id", getHistory);
+router.get("/analytics/:user_id", getAnalytics);
 
 export default router;

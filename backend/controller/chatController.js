@@ -2,81 +2,162 @@ import { pool } from "../db.js";
 import jwt from "jsonwebtoken";
 
 // 👉 paste your detectEmotion & detectRisk functions here (same as before)
-const detectEmotion = (text) => {
-    const emotions = {
-        happy: ["happy", "joy", "excited", "great", "amazing", "love"],
-        sad: ["sad", "down", "unhappy", "cry", "depressed", "lonely"],
-        angry: ["angry", "mad", "furious", "hate", "irritated"],
-        anxious: ["anxious", "worried", "scared", "nervous", "panic"],
-    };
+import axios from "axios";
 
-    let scores = {
-        happy: 0,
-        sad: 0,
-        angry: 0,
-        anxious: 0,
-    };
+export const detectEmotion = async (text) => {
+  try {
+    const response = await axios.post(
+      "https://api-inference.huggingface.co/models/SamLowe/roberta-base-go_emotions",
+      { inputs: text },
+      {
+        headers: {
+          Authorization: `Bearer ${process.env.HF_API_KEY}`,
+        },
+      },
+    );
+   
+    const data = response.data;
+    
+    // ✅ Handle different response formats safely
+    let emotionsArray = [];
 
-    const words = text.toLowerCase().split(/\W+/);
-
-    words.forEach(word => {
-        for (let emotion in emotions) {
-            if (emotions[emotion].includes(word)) {
-                scores[emotion]++;
-            }
-        }
-    });
-
-    // find max emotion
-    let detectedEmotion = "neutral";
-    let maxScore = 0;
-
-    for (let emotion in scores) {
-        if (scores[emotion] > maxScore) {
-            maxScore = scores[emotion];
-            detectedEmotion = emotion;
-        }
+    if (Array.isArray(data) && Array.isArray(data[0])) {
+      emotionsArray = data[0];
+    } else if (Array.isArray(data)) {
+      emotionsArray = data;
+    } else {
+      return {
+        emotion: "neutral",
+        intensity: 0,
+      };
     }
 
-    // intensity normalize (0–1)
-    const intensity = Math.min(maxScore / words.length, 1);
+    const textLower = text.toLowerCase();
 
+    // 🔥 CRITICAL: Suicide / high distress override
+    if (
+      textLower.includes("suicide") ||
+      textLower.includes("kill myself") ||
+      textLower.includes("end my life")
+    ) {
+      return {
+        emotion: "distress",
+        intensity: 1,
+      };
+    }
+
+    // 🔥 Find top emotion from model
+    let topEmotion = emotionsArray.reduce((max, curr) =>
+      curr.score > max.score ? curr : max,
+    );
+
+    // 🔥 Optional keyword boost layer (better UX)
+    const joyWords = ["happy", "joy", "great", "amazing", "good", "excited"];
+    const sadWords = ["sad", "cry", "depressed", "unhappy", "down"];
+    const angerWords = ["angry", "mad", "furious", "irritated"];
+    const fearWords = ["fear", "scared", "afraid", "anxious"];
+
+    if (joyWords.some((w) => textLower.includes(w))) {
+      return { emotion: "joy", intensity: 0.8 };
+    }
+
+    if (sadWords.some((w) => textLower.includes(w))) {
+      return { emotion: "sadness", intensity: 0.8 };
+    }
+
+    if (angerWords.some((w) => textLower.includes(w))) {
+      return { emotion: "anger", intensity: 0.8 };
+    }
+
+    if (fearWords.some((w) => textLower.includes(w))) {
+      return { emotion: "fear", intensity: 0.8 };
+    }
+
+    // ✅ Final model-based result
     return {
-        emotion: detectedEmotion,
-        intensity: Number(intensity.toFixed(2)),
+      emotion: topEmotion.label.toLowerCase(),
+      intensity: Number(topEmotion.score.toFixed(2)),
     };
+  } catch (error) {
+    console.error("Emotion detection error:", error.message);
+     console.error("HF ERROR FULL:", error.response?.data || error.message);
+    return {
+      emotion: "neutral",
+      intensity: 0,
+    };
+  }
 };
 
 const detectRisk = (text) => {
-    const highRiskWords = [
-        "suicide", "kill myself", "end my life", "die", "want to die"
-    ];
+  const highRiskWords = [
+    "suicide",
+    "kill myself",
+    "end my life",
+    "die",
+    "want to die",
+  ];
 
-    const mediumRiskWords = [
-        "hopeless", "worthless", "no reason to live", "tired of life"
-    ];
+  const mediumRiskWords = [
+    "hopeless",
+    "worthless",
+    "no reason to live",
+    "tired of life",
+  ];
 
-    const lowerText = text.toLowerCase();
+  const lowerText = text.toLowerCase();
 
-    let riskLevel = "low";
+  let riskLevel = "low";
 
-    for (let word of highRiskWords) {
-        if (lowerText.includes(word)) {
-            return { risk: "high" };
-        }
+  for (let word of highRiskWords) {
+    if (lowerText.includes(word)) {
+      return { risk: "high" };
     }
+  }
 
-    for (let word of mediumRiskWords) {
-        if (lowerText.includes(word)) {
-            riskLevel = "medium";
-        }
+  for (let word of mediumRiskWords) {
+    if (lowerText.includes(word)) {
+      riskLevel = "medium";
     }
+  }
 
-    return { risk: riskLevel };
+  return { risk: riskLevel };
+};
+const getAIResponse = async (prompt) => {
+  try {
+    const response = await axios.post(
+      "https://api.groq.com/openai/v1/chat/completions",
+      {
+        model: "llama3-70b-8192", // fast + powerful
+        messages: [
+          {
+            role: "system",
+            content:
+              "You are a supportive, empathetic AI assistant. Always respond in a calm, understanding, and helpful tone.",
+          },
+          {
+            role: "user",
+            content: prompt,
+          },
+        ],
+      },
+      {
+        headers: {
+          Authorization: `Bearer ${process.env.GROQ_API_KEY}`,
+          "Content-Type": "application/json",
+        },
+      }
+    );
+
+    return response.data.choices[0].message.content;
+  } catch (error) {
+    console.error("AI Response Error:", error.message);
+
+    return "I'm here for you. Tell me more about how you're feeling.";
+  }
 };
 export const handleChat = async (req, res) => {
   try {
-    const { message } = req.body;
+    const { user_message } = req.body;
 
     let user_id = null;
 
@@ -96,83 +177,129 @@ export const handleChat = async (req, res) => {
       user_id = req.body.user_id;
     }
 
-    if (!message) {
+    if (!user_message) {
       return res.json({ reply: "Message missing" });
     }
 
-    // 🔥 STEP 1: Detect emotion & risk
-    const { emotion, intensity } = detectEmotion(message);
-    const { risk } = detectRisk(message);
+    // 🔥 Emotion & Risk
+    const { emotion, intensity } = await detectEmotion(user_message);
+    const { risk } = detectRisk(user_message);
 
-    // 🔥 STEP 2: Consoling message logic
-    const generateConsolingMessage = (emotion, risk) => {
-      if (risk === "high") {
-        return "I'm really sorry you're feeling this way. You're not alone. Please consider talking to someone you trust or a professional. I'm here with you 🤍";
-      }
-
-      if (emotion === "sad") {
-        return "I can sense that you're feeling low. Do you want to talk about it?";
-      }
-
-      if (emotion === "angry") {
-        return "It seems you're feeling frustrated. Take a deep breath, I'm here to listen.";
-      }
-
-      if (emotion === "anxious") {
-        return "I understand this might feel overwhelming. Let's take it step by step.";
-      }
-
-      return null;
-    };
-
-    const isHighEmotion = intensity > 0.6;
-    const isHighRisk = risk === "high";
-
-    let supportMessage = null;
-
-    if (isHighEmotion || isHighRisk) {
-      supportMessage = generateConsolingMessage(emotion, risk);
-    }
-
-    // 🔥 STEP 3: AI Response (IMPORTANT)
+    // 🔥 AI response
     const aiPrompt = `
-User message: "${message}"
+User message: "${user_message}"
 Emotion: ${emotion} (intensity: ${intensity})
 Risk: ${risk}
-
-Reply in a supportive and empathetic tone.
+Reply in a supportive tone.
     `;
 
-    const aiReply = await getAIResponse(aiPrompt); // 👈 make sure this exists
+    const aiReply = await getAIResponse(aiPrompt);
 
-    // 🔥 STEP 4: Combine messages
-    let finalReply = "";
-
-    if (supportMessage) {
-      finalReply = supportMessage + "\n\n" + aiReply;
-    } else {
-      finalReply = aiReply;
-    }
-
-    // 🔥 STEP 5: Save to DB
+    // 🔥 Save to DB (FIXED)
     await pool.query(
-      `INSERT INTO chats (user_id, message, reply, emotion, intensity, risk_level)
-       VALUES ($1, $2, $3, $4, $5, $6)`,
-      [user_id, message, finalReply, emotion, intensity, risk]
+      `INSERT INTO chats 
+      (user_id, user_message, bot_reply, emotion, emotion_confidence, risk_level, risk_confidence)
+      VALUES ($1, $2, $3, $4, $5, $6, $7)`,
+      [
+        user_id,
+        user_message,
+        aiReply,
+        emotion,
+        intensity,
+        risk,
+        0.9, // default risk confidence
+      ]
     );
 
-    // 🔥 STEP 6: Send response
     res.json({
-      reply: finalReply,
+      reply: aiReply,
       meta: {
         emotion,
         intensity,
         risk,
       },
     });
-
   } catch (error) {
     console.error("Chat error:", error);
     res.status(500).json({ reply: "Server error" });
+  }
+};
+
+
+export const getHistory = async (req, res) => {
+  try {
+    const { user_id } = req.params;
+
+    const result = await pool.query(
+      `SELECT 
+        user_message, 
+        bot_reply, 
+        emotion, 
+        emotion_confidence, 
+        risk_level, 
+        risk_confidence, 
+        created_at
+       FROM chats
+       WHERE user_id = $1
+       ORDER BY created_at ASC`,
+      [user_id]
+    );
+
+    res.json(result.rows);
+  } catch (error) {
+    console.error("History error:", error);
+    res.status(500).json({ error: "Failed to fetch history" });
+  }
+};
+export const getAnalytics = async (req, res) => {
+  try {
+    const { user_id } = req.params;
+
+    // 🔥 Emotion Distribution
+    const emotionData = await pool.query(
+      `SELECT emotion, COUNT(*) 
+       FROM chats
+       WHERE user_id = $1
+       GROUP BY emotion`,
+      [user_id]
+    );
+
+    // 🔥 Risk Distribution
+    const riskData = await pool.query(
+      `SELECT risk_level, COUNT(*) 
+       FROM chats
+       WHERE user_id = $1
+       GROUP BY risk_level`,
+      [user_id]
+    );
+
+    // 🔥 Daily Messages
+    const dailyData = await pool.query(
+      `SELECT DATE(created_at) as date, COUNT(*) 
+       FROM chats
+       WHERE user_id = $1
+       GROUP BY date
+       ORDER BY date ASC`,
+      [user_id]
+    );
+
+    // 🔥 Avg Emotion Intensity
+    const avgEmotion = await pool.query(
+      `SELECT AVG(emotion_confidence) as avg_emotion 
+       FROM chats
+       WHERE user_id = $1`,
+      [user_id]
+    );
+
+    res.json({
+      emotions: emotionData.rows,
+      risk: riskData.rows,
+      daily: dailyData.rows,
+      avgEmotion: avgEmotion.rows[0].avg_emotion,
+    });
+
+  } catch (error) {
+    console.error("Analytics error:", error);
+    res.status(500).json({ error: "Failed to fetch analytics" });
   }
 };
