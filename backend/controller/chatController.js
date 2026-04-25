@@ -9,19 +9,35 @@ const detectEmotion = async (text) => {
     const textLower = text.toLowerCase();
     console.log("🔥 detectEmotion INPUT:", text);
     // 🔥 STEP 1: keyword-based quick detection (FAST + RELIABLE)
-    if (textLower.includes("sad") || textLower.includes("cry") || textLower.includes("depressed")) {
+    if (
+      textLower.includes("sad") ||
+      textLower.includes("cry") ||
+      textLower.includes("depressed")
+    ) {
       return { emotion: "sad", intensity: 0.8 };
     }
 
-    if (textLower.includes("happy") || textLower.includes("good") || textLower.includes("great")) {
+    if (
+      textLower.includes("happy") ||
+      textLower.includes("good") ||
+      textLower.includes("great")
+    ) {
       return { emotion: "joy", intensity: 0.8 };
     }
 
-    if (textLower.includes("angry") || textLower.includes("mad") || textLower.includes("furious")) {
+    if (
+      textLower.includes("angry") ||
+      textLower.includes("mad") ||
+      textLower.includes("furious")
+    ) {
       return { emotion: "anger", intensity: 0.8 };
     }
 
-    if (textLower.includes("scared") || textLower.includes("fear") || textLower.includes("afraid")) {
+    if (
+      textLower.includes("scared") ||
+      textLower.includes("fear") ||
+      textLower.includes("afraid")
+    ) {
       return { emotion: "fear", intensity: 0.8 };
     }
 
@@ -35,7 +51,7 @@ const detectEmotion = async (text) => {
           "Content-Type": "application/json",
         },
         body: JSON.stringify({ inputs: text }),
-      }
+      },
     );
 
     if (!response.ok) {
@@ -48,15 +64,12 @@ const detectEmotion = async (text) => {
       return { emotion: "neutral", intensity: 0.5 };
     }
 
-    let top = data.reduce((max, curr) =>
-      curr.score > max.score ? curr : max
-    );
+    let top = data.reduce((max, curr) => (curr.score > max.score ? curr : max));
 
     return {
       emotion: top.label.toLowerCase(),
       intensity: Number(top.score.toFixed(2)),
     };
-
   } catch (err) {
     console.error("Emotion error:", err.message);
     return { emotion: "neutral", intensity: 0.5 };
@@ -95,6 +108,24 @@ const detectRisk = (text) => {
   }
 
   return { risk: riskLevel };
+};
+const getSafetyMessage = (risk, text) => {
+  const lower = text.toLowerCase();
+
+  if (risk === "high") {
+    return "Hey, it seems you're going through something really heavy. You are not alone. Please consider reaching out to someone you trust or a professional support line.";
+  }
+
+  if (
+    risk === "medium" ||
+    lower.includes("harass") ||
+    lower.includes("abuse") ||
+    lower.includes("bullied")
+  ) {
+    return "That sounds difficult. You deserve to feel safe and respected. If you're facing harassment, consider seeking support or talking to someone you trust.";
+  }
+
+  return null;
 };
 const getAIResponse = async (prompt) => {
   try {
@@ -163,7 +194,7 @@ export const handleChat = async (req, res) => {
     // 🔥 Emotion & Risk
     const { emotion, intensity } = await detectEmotion(user_message);
     const { risk } = detectRisk(user_message);
-
+    const safetyMessage = getSafetyMessage(risk, user_message);
     // 🔥 AI response
     const aiPrompt = `
 User message: "${user_message}"
@@ -173,7 +204,11 @@ Reply in a supportive tone.
     `;
 
     const aiReply = await getAIResponse(aiPrompt);
+    let finalReply = aiReply;
 
+    if (safetyMessage) {
+      finalReply = `${safetyMessage}`;
+    }
     // 🔥 Save to DB (FIXED)
     await pool.query(
       `INSERT INTO chats 
@@ -182,7 +217,7 @@ Reply in a supportive tone.
       [
         user_id,
         user_message,
-        aiReply,
+        finalReply,
         emotion,
         intensity,
         risk,
@@ -190,7 +225,7 @@ Reply in a supportive tone.
       ],
     );
     res.json({
-      reply: aiReply,
+      reply: finalReply,
       emotion, // 👈 move outside
       intensity,
       risk, // 👈 move outside
