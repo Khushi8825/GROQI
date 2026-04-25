@@ -113,7 +113,7 @@ const getSafetyMessage = (risk, text) => {
   const lower = text.toLowerCase();
 
   if (risk === "high") {
-    return "Hey, it seems you're going through something really heavy. You are not alone. Please consider reaching out to someone you trust or a professional support line.";
+    return "Hey, it seems you're going through something really heavy. You are not alone. Please consider reaching out to someone you trust or a professional support line. If you need to talk to me please reply 'Yes, I need to talk you'.";
   }
 
   if (
