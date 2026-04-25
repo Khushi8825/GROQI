@@ -135,7 +135,7 @@ const Chat = () => {
         emotion: data.emotion,
         risk: data.risk,
       };
-      
+
       setMessages((prev) => [...prev, aiMsg]);
     } catch (error) {
       console.error(error);
@@ -156,31 +156,40 @@ const Chat = () => {
   };
   const getRiskStyle = (risk) => {
     switch (risk) {
-      case "self_harm":
-        return "bg-purple-300 text-black border-2 border-purple-600";
-      case "threat":
-        return "bg-red-300 text-black border-2 border-red-600";
-      case "harassment":
-        return "bg-orange-300 text-black border-2 border-orange-600";
+      case "high":
+        return "border-2 border-red-700 bg-red-300";
+      case "medium":
+        return "border-2 border-orange-600 bg-orange-200";
       default:
-        return null;
+        return "";
     }
   };
+
+  // const getEmotionStyle = (emotion, risk) => {
+  //   // 🚨 PRIORITY: RISK FIRST
+  //   if (risk === "high") {
+  //     return "bg-red-300 text-black border-2 border-red-600";
+  //   }
+
+  //   if (risk === "medium") {
+  //     return "bg-orange-300 text-black border-2 border-orange-600";
+  //   }
+
+  //   // 🎭 FALLBACK: EMOTION
+  //   if (emotion === "joy") return "bg-green-200 text-black";
+  //   if (emotion === "sad") return "bg-blue-200 text-black";
+  //   if (emotion === "anger") return "bg-red-200 text-black";
+  //   if (emotion === "fear") return "bg-yellow-200 text-black";
+
+  //   return "bg-white/90 text-slate-800";
+  // };
   const getEmotionStyle = (emotion) => {
-    console.log("🎨 Emotion received:", emotion);
-    const e = emotion?.toLowerCase();
-    switch (e) {
-      case "joy":
-        return "bg-green-200 text-black";
-      case "sad":
-        return "bg-blue-200 text-black";
-      case "anger":
-        return "bg-red-200 text-black";
-      case "fear":
-        return "bg-yellow-200 text-black";
-      default:
-        return "bg-white/90 text-slate-800";
-    }
+    if (emotion === "joy") return "bg-green-200 text-black";
+    if (emotion === "sad") return "bg-blue-200 text-black";
+    if (emotion === "anger") return "bg-red-200 text-black";
+    if (emotion === "fear") return "bg-yellow-200 text-black";
+
+    return "bg-white/90 text-slate-800";
   };
   const handleLogout = async () => {
     localStorage.removeItem("token");
@@ -273,80 +282,84 @@ const Chat = () => {
         ) : (
           messages.map((msg, index) => {
             console.log("🎯 RENDER MSG:", msg);
-            return(<div
-              key={index}
-              className={`flex ${
-                msg.sender === "user" ? "justify-end mb-6" : "mb-6"
-              } gap-4`}
-            >
+            return (
               <div
-                className={`max-w-[70%] p-5 rounded-3xl shadow-2xl ${
-                  msg.sender === "user"
-                    ? "bg-gradient-to-r from-indigo-500 to-purple-600 text-white rounded-br-sm"
-                    : `${
-                        msg.risk && msg.risk !== "low"
-                          ? getRiskStyle(msg.risk)
-                          : getEmotionStyle(msg.emotion)
-                      } rounded-bl-sm shadow-xl`
-                }`}
+                key={index}
+                className={`flex ${
+                  msg.sender === "user" ? "justify-end mb-6" : "mb-6"
+                } gap-4`}
               >
-                <ReactMarkdown
-                  remarkPlugins={[remarkGfm]}
-                  components={{
-                    h1: ({ children }) => (
-                      <h1 className="text-2xl font-bold mb-3">{children}</h1>
-                    ),
-                    h2: ({ children }) => (
-                      <h2 className="text-xl font-semibold mb-2">{children}</h2>
-                    ),
-                    h3: ({ children }) => (
-                      <h3 className="text-lg font-semibold mb-2">{children}</h3>
-                    ),
-                    p: ({ children }) => (
-                      <p className="mb-3 leading-relaxed">{children}</p>
-                    ),
-                    ul: ({ children }) => (
-                      <ul className="list-disc ml-6 mb-3">{children}</ul>
-                    ),
-                    ol: ({ children }) => (
-                      <ol className="list-decimal ml-6 mb-3">{children}</ol>
-                    ),
-                    li: ({ children }) => <li className="mb-1">{children}</li>,
-                    strong: ({ children }) => (
-                      <strong className="font-semibold">{children}</strong>
-                    ),
-                    code: ({ inline, className, children }) => {
-                      const match = /language-(\w+)/.exec(className || "");
-
-                      return !inline ? (
-                        <div className="my-4 rounded-xl overflow-hidden shadow-lg">
-                          <SyntaxHighlighter
-                            style={oneDark}
-                            language={match?.[1] || "cpp"}
-                            PreTag="div"
-                            customStyle={{
-                              margin: 0,
-                              padding: "16px",
-                              fontSize: "14px",
-                              borderRadius: "12px",
-                            }}
-                          >
-                            {String(children).replace(/\n$/, "")}
-                          </SyntaxHighlighter>
-                        </div>
-                      ) : (
-                        <code className="bg-gray-200 px-1 rounded text-sm font-mono">
-                          {children}
-                        </code>
-                      );
-                    },
-                  }}
+                <div
+                  className={`max-w-[70%] p-5 rounded-3xl shadow-2xl ${
+                    msg.sender === "user"
+                      ? "bg-gradient-to-r from-indigo-500 to-purple-600 text-white rounded-br-sm"
+                      : `${getEmotionStyle(msg.emotion)} ${getRiskStyle(msg.risk)}`
+                  }`}
                 >
-                  {msg.text}
-                </ReactMarkdown>
+                  <ReactMarkdown
+                    remarkPlugins={[remarkGfm]}
+                    components={{
+                      h1: ({ children }) => (
+                        <h1 className="text-2xl font-bold mb-3">{children}</h1>
+                      ),
+                      h2: ({ children }) => (
+                        <h2 className="text-xl font-semibold mb-2">
+                          {children}
+                        </h2>
+                      ),
+                      h3: ({ children }) => (
+                        <h3 className="text-lg font-semibold mb-2">
+                          {children}
+                        </h3>
+                      ),
+                      p: ({ children }) => (
+                        <p className="mb-3 leading-relaxed">{children}</p>
+                      ),
+                      ul: ({ children }) => (
+                        <ul className="list-disc ml-6 mb-3">{children}</ul>
+                      ),
+                      ol: ({ children }) => (
+                        <ol className="list-decimal ml-6 mb-3">{children}</ol>
+                      ),
+                      li: ({ children }) => (
+                        <li className="mb-1">{children}</li>
+                      ),
+                      strong: ({ children }) => (
+                        <strong className="font-semibold">{children}</strong>
+                      ),
+                      code: ({ inline, className, children }) => {
+                        const match = /language-(\w+)/.exec(className || "");
+
+                        return !inline ? (
+                          <div className="my-4 rounded-xl overflow-hidden shadow-lg">
+                            <SyntaxHighlighter
+                              style={oneDark}
+                              language={match?.[1] || "cpp"}
+                              PreTag="div"
+                              customStyle={{
+                                margin: 0,
+                                padding: "16px",
+                                fontSize: "14px",
+                                borderRadius: "12px",
+                              }}
+                            >
+                              {String(children).replace(/\n$/, "")}
+                            </SyntaxHighlighter>
+                          </div>
+                        ) : (
+                          <code className="bg-gray-200 px-1 rounded text-sm font-mono">
+                            {children}
+                          </code>
+                        );
+                      },
+                    }}
+                  >
+                    {msg.text}
+                  </ReactMarkdown>
+                </div>
               </div>
-            </div>
-          )})
+            );
+          })
         )}
 
         {/* Loading Indicator */}
