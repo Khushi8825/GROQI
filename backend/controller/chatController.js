@@ -1,114 +1,116 @@
 import { pool } from "../db.js";
 import jwt from "jsonwebtoken";
-
-// 👉 paste your detectEmotion & detectRisk functions here (same as before)
+import {detectRisk, detectEmotion} from "../middleware/chatMiddleware.js"
 import axios from "axios";
 
-const detectEmotion = async (text) => {
-  try {
-    const textLower = text.toLowerCase();
-    console.log("🔥 detectEmotion INPUT:", text);
-    // 🔥 STEP 1: keyword-based quick detection (FAST + RELIABLE)
-    if (
-      textLower.includes("sad") ||
-      textLower.includes("cry") ||
-      textLower.includes("depressed")
-    ) {
-      return { emotion: "sad", intensity: 0.8 };
-    }
+// 👉 paste your detectEmotion & detectRisk functions here (same as before)
+// import axios from "axios";
 
-    if (
-      textLower.includes("happy") ||
-      textLower.includes("good") ||
-      textLower.includes("great")
-    ) {
-      return { emotion: "joy", intensity: 0.8 };
-    }
+// const detectEmotion = async (text) => {
+//   try {
+//     const textLower = text.toLowerCase();
+//     console.log("🔥 detectEmotion INPUT:", text);
+//     // 🔥 STEP 1: keyword-based quick detection (FAST + RELIABLE)
+//     if (
+//       textLower.includes("sad") ||
+//       textLower.includes("cry") ||
+//       textLower.includes("depressed")
+//     ) {
+//       return { emotion: "sad", intensity: 0.8 };
+//     }
 
-    if (
-      textLower.includes("angry") ||
-      textLower.includes("mad") ||
-      textLower.includes("furious")
-    ) {
-      return { emotion: "anger", intensity: 0.8 };
-    }
+//     if (
+//       textLower.includes("happy") ||
+//       textLower.includes("good") ||
+//       textLower.includes("great")
+//     ) {
+//       return { emotion: "joy", intensity: 0.8 };
+//     }
 
-    if (
-      textLower.includes("scared") ||
-      textLower.includes("fear") ||
-      textLower.includes("afraid")
-    ) {
-      return { emotion: "fear", intensity: 0.8 };
-    }
+//     if (
+//       textLower.includes("angry") ||
+//       textLower.includes("mad") ||
+//       textLower.includes("furious")
+//     ) {
+//       return { emotion: "anger", intensity: 0.8 };
+//     }
 
-    // 🔥 STEP 2: fallback to HuggingFace
-    const response = await fetch(
-      "https://api-inference.huggingface.co/models/j-hartmann/emotion-english-distilroberta-base",
-      {
-        method: "POST",
-        headers: {
-          Authorization: `Bearer ${process.env.HF_API_KEY}`,
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({ inputs: text }),
-      },
-    );
+//     if (
+//       textLower.includes("scared") ||
+//       textLower.includes("fear") ||
+//       textLower.includes("afraid")
+//     ) {
+//       return { emotion: "fear", intensity: 0.8 };
+//     }
 
-    if (!response.ok) {
-      return { emotion: "neutral", intensity: 0.5 };
-    }
+//     // 🔥 STEP 2: fallback to HuggingFace
+//     const response = await fetch(
+//       "https://api-inference.huggingface.co/models/j-hartmann/emotion-english-distilroberta-base",
+//       {
+//         method: "POST",
+//         headers: {
+//           Authorization: `Bearer ${process.env.HF_API_KEY}`,
+//           "Content-Type": "application/json",
+//         },
+//         body: JSON.stringify({ inputs: text }),
+//       },
+//     );
 
-    const data = await response.json();
+//     if (!response.ok) {
+//       return { emotion: "neutral", intensity: 0.5 };
+//     }
 
-    if (!Array.isArray(data)) {
-      return { emotion: "neutral", intensity: 0.5 };
-    }
+//     const data = await response.json();
 
-    let top = data.reduce((max, curr) => (curr.score > max.score ? curr : max));
+//     if (!Array.isArray(data)) {
+//       return { emotion: "neutral", intensity: 0.5 };
+//     }
 
-    return {
-      emotion: top.label.toLowerCase(),
-      intensity: Number(top.score.toFixed(2)),
-    };
-  } catch (err) {
-    console.error("Emotion error:", err.message);
-    return { emotion: "neutral", intensity: 0.5 };
-  }
-};
-const detectRisk = (text) => {
-  const highRiskWords = [
-    "suicide",
-    "kill myself",
-    "end my life",
-    "die",
-    "want to die",
-  ];
+//     let top = data.reduce((max, curr) => (curr.score > max.score ? curr : max));
 
-  const mediumRiskWords = [
-    "hopeless",
-    "worthless",
-    "no reason to live",
-    "tired of life",
-  ];
+//     return {
+//       emotion: top.label.toLowerCase(),
+//       intensity: Number(top.score.toFixed(2)),
+//     };
+//   } catch (err) {
+//     console.error("Emotion error:", err.message);
+//     return { emotion: "neutral", intensity: 0.5 };
+//   }
+// };
+// const detectRisk = (text) => {
+//   const highRiskWords = [
+//     "suicide",
+//     "kill myself",
+//     "end my life",
+//     "die",
+//     "want to die",
+//   ];
 
-  const lowerText = text.toLowerCase();
+//   const mediumRiskWords = [
+//     "hopeless",
+//     "worthless",
+//     "no reason to live",
+//     "tired of life",
+//   ];
 
-  let riskLevel = "low";
+//   const lowerText = text.toLowerCase();
 
-  for (let word of highRiskWords) {
-    if (lowerText.includes(word)) {
-      return { risk: "high" };
-    }
-  }
+//   let riskLevel = "low";
 
-  for (let word of mediumRiskWords) {
-    if (lowerText.includes(word)) {
-      riskLevel = "medium";
-    }
-  }
+//   for (let word of highRiskWords) {
+//     if (lowerText.includes(word)) {
+//       return { risk: "high" };
+//     }
+//   }
 
-  return { risk: riskLevel };
-};
+//   for (let word of mediumRiskWords) {
+//     if (lowerText.includes(word)) {
+//       riskLevel = "medium";
+//     }
+//   }
+
+//   return { risk: riskLevel };
+// };
 const getSafetyMessage = (risk, text) => {
   const lower = text.toLowerCase();
 
@@ -194,6 +196,7 @@ export const handleChat = async (req, res) => {
     // 🔥 Emotion & Risk
     const { emotion, intensity } = await detectEmotion(user_message);
     const { risk } = detectRisk(user_message);
+    console.log(risk);
     const safetyMessage = getSafetyMessage(risk, user_message);
     // 🔥 AI response
     const aiPrompt = `
