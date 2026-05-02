@@ -15,6 +15,7 @@ app.use(express.json());
 app.use("/api/auth", authRoutes);
 app.use("/api/chat", chatRoutes);
 
+// console.log("HF_TOKEN:", process.env.HF_API_KEY);
 app.listen(5000, () => {
   console.log("🚀 Backend running on http://localhost:5000");
 });

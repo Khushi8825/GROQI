@@ -195,8 +195,7 @@ export const handleChat = async (req, res) => {
 
     // 🔥 Emotion & Risk
     const { emotion, intensity } = await detectEmotion(user_message);
-    const { risk } = detectRisk(user_message);
-    console.log(risk);
+    const { risk } = await detectRisk(user_message);
     const safetyMessage = getSafetyMessage(risk, user_message);
     // 🔥 AI response
     const aiPrompt = `

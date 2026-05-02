@@ -1,74 +1,111 @@
-import axios from "axios";
+// const detectEmotion = async (text) => {
+//   try {
+//     console.log("🔥 detectEmotion INPUT:", text);
 
+//     const response = await fetch(
+//       "https://huggingface.co/j-hartmann/emotion-english-distilroberta-base",
+//       {
+//         method: "POST",
+//         headers: {
+//           Authorization: `Bearer ${process.env.HF_API_KEY}`,
+//           "Content-Type": "application/json",
+//         },
+//         body: JSON.stringify({ inputs: text }),
+//       }
+//     );
+
+//     const data = await response.json();
+
+//     // ⚠️ Handle model loading case
+//     if (data.error && data.error.includes("loading")) {
+//       console.log("⏳ Model loading... retrying");
+//       return { emotion: "neutral", intensity: 0.5 };
+//     }
+
+//     // ✅ FIX: HF returns nested array
+//     const predictions = data[0];
+
+//     if (!predictions) {
+//       return { emotion: "neutral", intensity: 0.5 };
+//     }
+
+//     // get top emotion
+//     const top = predictions.reduce((max, curr) =>
+//       curr.score > max.score ? curr : max
+//     );
+
+//     const result = {
+//       emotion: top.label.toLowerCase(),
+//       intensity: Number(top.score.toFixed(2)),
+//     };
+
+//     console.log(
+//       `🎯 Emotion: ${result.emotion} | Intensity: ${result.intensity}`
+//     );
+
+//     return result;
+//   } catch (err) {
+//     console.error("❌ Emotion error:", err.message);
+//     return { emotion: "neutral", intensity: 0.5 };
+//   }
+// };
+
+import { InferenceClient } from "@huggingface/inference";
+const client = new InferenceClient(process.env.HF_API_KEY);
 const detectEmotion = async (text) => {
+  const result = await client.textClassification({
+    model: "j-hartmann/emotion-english-distilroberta-base",
+    inputs: text,
+  });
+
+  return result[0]; // highest score
+};
+const detectRisk = async (text) => {
   try {
-    const textLower = text.toLowerCase();
-    console.log("🔥 detectEmotion INPUT:", text);
-    // 🔥 STEP 1: keyword-based quick detection (FAST + RELIABLE)
-    if (
-      textLower.includes("sad") ||
-      textLower.includes("cry") ||
-      textLower.includes("depressed")
-    ) {
-      return { emotion: "sad", intensity: 0.8 };
-    }
+    console.log("🔥 detectRisk INPUT:", text);
 
-    if (
-      textLower.includes("happy") ||
-      textLower.includes("good") ||
-      textLower.includes("great")
-    ) {
-      return { emotion: "joy", intensity: 0.8 };
-    }
+    const HF_URL =
+      "https://api-inference.huggingface.co/models/facebook/bart-large-mnli";
 
-    if (
-      textLower.includes("angry") ||
-      textLower.includes("mad") ||
-      textLower.includes("furious")
-    ) {
-      return { emotion: "anger", intensity: 0.8 };
-    }
-
-    if (
-      textLower.includes("scared") ||
-      textLower.includes("fear") ||
-      textLower.includes("afraid")
-    ) {
-      return { emotion: "fear", intensity: 0.8 };
-    }
-    
-    // 🔥 STEP 2: fallback to HuggingFace
-    const response = await fetch(
-      "https://api-inference.huggingface.co/models/j-hartmann/emotion-english-distilroberta-base",
-      {
-        method: "POST",
-        headers: {
-          Authorization: `Bearer ${process.env.HF_API_KEY}`,
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({ inputs: text }),
+    const response = await fetch(HF_URL, {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${process.env.HF_API_KEY}`,
+        "Content-Type": "application/json",
       },
-    );
+      body: JSON.stringify({
+        inputs: text,
+        parameters: {
+          candidate_labels: ["high risk", "medium risk", "low risk"],
+        },
+      }),
+    });
 
     if (!response.ok) {
-      return { emotion: "neutral", intensity: 0.5 };
+      const errorText = await response.text();
+      console.error("❌ HF Risk API Error:", errorText);
+      return fallbackRisk(text);
     }
 
     const data = await response.json();
 
-    if (!Array.isArray(data)) {
-      return { emotion: "neutral", intensity: 0.5 };
+    if (!data.labels || !data.scores) {
+      return fallbackRisk(text);
     }
 
-    let top = data.reduce((max, curr) => (curr.score > max.score ? curr : max));
-
-    return {
-      emotion: top.label.toLowerCase(),
-      intensity: Number(top.score.toFixed(2)),
+    const result = {
+      risk: data.labels[0].split(" ")[0], // high / medium / low
+      intensity: Number(data.scores[0].toFixed(2)),
     };
-  } catch (err) {
-    console.error("Emotion error:", err.message);
-    return { emotion: "neutral", intensity: 0.5 };
+
+    console.log(
+      `🚨 Risk: ${result.risk} | Intensity: ${result.intensity}`
+    );
+
+    return result;
+  } catch (error) {
+    console.error("❌ Risk error:", error.message);
+    return fallbackRisk(text);
   }
 };
 const fallbackRisk = (text) => {
@@ -89,70 +126,24 @@ const fallbackRisk = (text) => {
 
   const lowerText = text.toLowerCase();
 
-  let riskLevel = "low";
-
   for (let word of highRiskWords) {
     if (lowerText.includes(word)) {
-      return { risk: "high" };
+      console.log("🚨 Fallback Risk: high");
+      return { risk: "high", intensity: 1.0 };
     }
   }
 
   for (let word of mediumRiskWords) {
     if (lowerText.includes(word)) {
-      riskLevel = "medium";
+      console.log("⚠️ Fallback Risk: medium");
+      return { risk: "medium", intensity: 0.7 };
     }
   }
 
-  return { risk: riskLevel };
+  console.log("✅ Fallback Risk: low");
+  return { risk: "low", intensity: 0.3 };
 };
-const detectRisk = async (text) => {
-  try {
-    if (text.includes("kill myself")) {
-      return { risk: "high", confidence: 1.0 };
-    }
-    console.log("API KEY:", process.env.HF_API_KEY);
-    const HF_URL =
-  "https://api-inference.huggingface.co/models/facebook/bart-large-mnli";
 
-    const response = await fetch(
-      HF_URL,
-      {
-        method: "POST",
-        headers: {
-          Authorization: `Bearer ${process.env.HF_API_KEY}`,
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          inputs: text,
-          parameters: {
-            candidate_labels: ["high risk", "medium risk", "low risk"],
-          },
-        }),
-      },
-    );
-    console.log("Calling:", HF_URL);
-       if (!response.ok) {
-      const errorText = await response.text();
-      console.error("HF API Error:", errorText);
-      return fallbackRisk(text);
-    }
-    const data = await response.json();
-
-    // Example response:
-    // { labels: ["medium risk", "low risk", "high risk"], scores: [0.7, 0.2, 0.1] }
-
-    const topLabel = data.labels[0];
-    const confidence = data.scores[0];
-
-    return {
-      risk: topLabel.split(" ")[0], // "medium"
-      confidence,
-    };
-  } catch (error) {
-    console.error("HF error:", error);
-
-    // fallback to your old logic
-    return fallbackRisk(text);
-  }
+export {
+  detectRisk, detectEmotion
 };
-export { detectRisk, detectEmotion };
