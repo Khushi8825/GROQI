@@ -3,114 +3,6 @@ import jwt from "jsonwebtoken";
 import {detectRisk, detectEmotion} from "../middleware/chatMiddleware.js"
 import axios from "axios";
 
-// 👉 paste your detectEmotion & detectRisk functions here (same as before)
-// import axios from "axios";
-
-// const detectEmotion = async (text) => {
-//   try {
-//     const textLower = text.toLowerCase();
-//     console.log("🔥 detectEmotion INPUT:", text);
-//     // 🔥 STEP 1: keyword-based quick detection (FAST + RELIABLE)
-//     if (
-//       textLower.includes("sad") ||
-//       textLower.includes("cry") ||
-//       textLower.includes("depressed")
-//     ) {
-//       return { emotion: "sad", intensity: 0.8 };
-//     }
-
-//     if (
-//       textLower.includes("happy") ||
-//       textLower.includes("good") ||
-//       textLower.includes("great")
-//     ) {
-//       return { emotion: "joy", intensity: 0.8 };
-//     }
-
-//     if (
-//       textLower.includes("angry") ||
-//       textLower.includes("mad") ||
-//       textLower.includes("furious")
-//     ) {
-//       return { emotion: "anger", intensity: 0.8 };
-//     }
-
-//     if (
-//       textLower.includes("scared") ||
-//       textLower.includes("fear") ||
-//       textLower.includes("afraid")
-//     ) {
-//       return { emotion: "fear", intensity: 0.8 };
-//     }
-
-//     // 🔥 STEP 2: fallback to HuggingFace
-//     const response = await fetch(
-//       "https://api-inference.huggingface.co/models/j-hartmann/emotion-english-distilroberta-base",
-//       {
-//         method: "POST",
-//         headers: {
-//           Authorization: `Bearer ${process.env.HF_API_KEY}`,
-//           "Content-Type": "application/json",
-//         },
-//         body: JSON.stringify({ inputs: text }),
-//       },
-//     );
-
-//     if (!response.ok) {
-//       return { emotion: "neutral", intensity: 0.5 };
-//     }
-
-//     const data = await response.json();
-
-//     if (!Array.isArray(data)) {
-//       return { emotion: "neutral", intensity: 0.5 };
-//     }
-
-//     let top = data.reduce((max, curr) => (curr.score > max.score ? curr : max));
-
-//     return {
-//       emotion: top.label.toLowerCase(),
-//       intensity: Number(top.score.toFixed(2)),
-//     };
-//   } catch (err) {
-//     console.error("Emotion error:", err.message);
-//     return { emotion: "neutral", intensity: 0.5 };
-//   }
-// };
-// const detectRisk = (text) => {
-//   const highRiskWords = [
-//     "suicide",
-//     "kill myself",
-//     "end my life",
-//     "die",
-//     "want to die",
-//   ];
-
-//   const mediumRiskWords = [
-//     "hopeless",
-//     "worthless",
-//     "no reason to live",
-//     "tired of life",
-//   ];
-
-//   const lowerText = text.toLowerCase();
-
-//   let riskLevel = "low";
-
-//   for (let word of highRiskWords) {
-//     if (lowerText.includes(word)) {
-//       return { risk: "high" };
-//     }
-//   }
-
-//   for (let word of mediumRiskWords) {
-//     if (lowerText.includes(word)) {
-//       riskLevel = "medium";
-//     }
-//   }
-
-//   return { risk: riskLevel };
-// };
 const getSafetyMessage = (risk, text) => {
   const lower = text.toLowerCase();
 
@@ -118,14 +10,14 @@ const getSafetyMessage = (risk, text) => {
     return "Hey, it seems you're going through something really heavy. You are not alone. Please consider reaching out to someone you trust or a professional support line. If you need to talk to me please reply 'Yes, I need to talk you'.";
   }
 
-  if (
-    risk === "medium" ||
-    lower.includes("harass") ||
-    lower.includes("abuse") ||
-    lower.includes("bullied")
-  ) {
-    return "That sounds difficult. You deserve to feel safe and respected. If you're facing harassment, consider seeking support or talking to someone you trust.";
-  }
+  // if (
+  //   risk === "medium" ||
+  //   lower.includes("harass") ||
+  //   lower.includes("abuse") ||
+  //   lower.includes("bullied")
+  // ) {
+  //   return "That sounds difficult. You deserve to feel safe and respected. If you're facing harassment, consider seeking support or talking to someone you trust.";
+  // }
 
   return null;
 };

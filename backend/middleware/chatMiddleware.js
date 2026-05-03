@@ -98,54 +98,7 @@ const detectRisk = async (text) => {
     return fallbackRisk(text);
   }
 };
-// const detectRisk = async (text) => {
-//   try {
-//     console.log("🔥 detectRisk INPUT:", text);
 
-//     const HF_URL =
-//       "https://api-inference.huggingface.co/models/facebook/bart-large-mnli";
-
-//     const response = await fetch(HF_URL, {
-//       method: "POST",
-//       headers: {
-//         Authorization: `Bearer ${process.env.HF_API_KEY}`,
-//         "Content-Type": "application/json",
-//       },
-//       body: JSON.stringify({
-//         inputs: text,
-//         parameters: {
-//           candidate_labels: ["high risk", "medium risk", "low risk"],
-//         },
-//       }),
-//     });
-
-//     if (!response.ok) {
-//       const errorText = await response.text();
-//       console.error("❌ HF Risk API Error:", errorText);
-//       return fallbackRisk(text);
-//     }
-
-//     const data = await response.json();
-
-//     if (!data.labels || !data.scores) {
-//       return fallbackRisk(text);
-//     }
-
-//     const result = {
-//       risk: data.labels[0].split(" ")[0], // high / medium / low
-//       intensity: Number(data.scores[0].toFixed(2)),
-//     };
-
-//     console.log(
-//       `🚨 Risk: ${result.risk} | Intensity: ${result.intensity}`
-//     );
-
-//     return result;
-//   } catch (error) {
-//     console.error("❌ Risk error:", error.message);
-//     return fallbackRisk(text);
-//   }
-// };
 const fallbackRisk = (text) => {
   const highRiskWords = [
     "suicide",

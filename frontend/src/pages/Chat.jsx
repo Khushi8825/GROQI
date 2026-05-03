@@ -159,30 +159,11 @@ const Chat = () => {
       case "high":
         return "border-2 border-red-700 bg-red-300";
       case "medium":
-        return "border-2 border-orange-600 bg-orange-200";
+        return "border-2 border-yellow-600 bg-yellow-200";
       default:
         return "";
     }
   };
-
-  // const getEmotionStyle = (emotion, risk) => {
-  //   // 🚨 PRIORITY: RISK FIRST
-  //   if (risk === "high") {
-  //     return "bg-red-300 text-black border-2 border-red-600";
-  //   }
-
-  //   if (risk === "medium") {
-  //     return "bg-orange-300 text-black border-2 border-orange-600";
-  //   }
-
-  //   // 🎭 FALLBACK: EMOTION
-  //   if (emotion === "joy") return "bg-green-200 text-black";
-  //   if (emotion === "sad") return "bg-blue-200 text-black";
-  //   if (emotion === "anger") return "bg-red-200 text-black";
-  //   if (emotion === "fear") return "bg-yellow-200 text-black";
-
-  //   return "bg-white/90 text-slate-800";
-  // };
   const getEmotionStyle = (emotion) => {
     if (emotion === "joy") return "bg-green-200 text-black";
     if (emotion === "sad") return "bg-blue-200 text-black";
