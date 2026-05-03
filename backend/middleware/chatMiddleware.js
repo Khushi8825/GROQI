@@ -1,64 +1,44 @@
-// const detectEmotion = async (text) => {
-//   try {
-//     console.log("🔥 detectEmotion INPUT:", text);
-
-//     const response = await fetch(
-//       "https://huggingface.co/j-hartmann/emotion-english-distilroberta-base",
-//       {
-//         method: "POST",
-//         headers: {
-//           Authorization: `Bearer ${process.env.HF_API_KEY}`,
-//           "Content-Type": "application/json",
-//         },
-//         body: JSON.stringify({ inputs: text }),
-//       }
-//     );
-
-//     const data = await response.json();
-
-//     // ⚠️ Handle model loading case
-//     if (data.error && data.error.includes("loading")) {
-//       console.log("⏳ Model loading... retrying");
-//       return { emotion: "neutral", intensity: 0.5 };
-//     }
-
-//     // ✅ FIX: HF returns nested array
-//     const predictions = data[0];
-
-//     if (!predictions) {
-//       return { emotion: "neutral", intensity: 0.5 };
-//     }
-
-//     // get top emotion
-//     const top = predictions.reduce((max, curr) =>
-//       curr.score > max.score ? curr : max
-//     );
-
-//     const result = {
-//       emotion: top.label.toLowerCase(),
-//       intensity: Number(top.score.toFixed(2)),
-//     };
-
-//     console.log(
-//       `🎯 Emotion: ${result.emotion} | Intensity: ${result.intensity}`
-//     );
-
-//     return result;
-//   } catch (err) {
-//     console.error("❌ Emotion error:", err.message);
-//     return { emotion: "neutral", intensity: 0.5 };
-//   }
-// };
-
+import dotenv from "dotenv";
+dotenv.config();
 import { InferenceClient } from "@huggingface/inference";
 const client = new InferenceClient(process.env.HF_API_KEY);
 const detectEmotion = async (text) => {
-  const result = await client.textClassification({
-    model: "j-hartmann/emotion-english-distilroberta-base",
-    inputs: text,
-  });
+  try {
+    console.log("🔥 detectEmotion INPUT:", text);
 
-  return result[0]; // highest score
+    const result = await client.textClassification({
+      model: "j-hartmann/emotion-english-distilroberta-base",
+      inputs: text,
+    });
+    // result format:
+    // [
+    //   { label: 'sadness', score: 0.95 },
+    //   { label: 'joy', score: 0.02 },
+    //   ...
+    // ]
+    if (!result || result.length === 0) {
+      return { emotion: "neutral", intensity: 0.5 };
+    }
+
+    // ✅ find highest score manually
+    const top = result.reduce((max, curr) =>
+      curr.score > max.score ? curr : max
+    );
+
+    const finalResult = {
+      emotion: top.label.toLowerCase(),
+      intensity: Number(top.score.toFixed(2)),
+    };
+
+    console.log(
+      `🎯 Emotion: ${finalResult.emotion} | Intensity: ${finalResult.intensity}`
+    );
+
+    return finalResult;
+  } catch (err) {
+    console.error("❌ Emotion error:", err.message);
+    return { emotion: "neutral", intensity: 0.5 };
+  }
 };
 const detectRisk = async (text) => {
   try {
