@@ -44,50 +44,108 @@ const detectRisk = async (text) => {
   try {
     console.log("🔥 detectRisk INPUT:", text);
 
-    const HF_URL =
-      "https://api-inference.huggingface.co/models/facebook/bart-large-mnli";
-
-    const response = await fetch(HF_URL, {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${process.env.HF_API_KEY}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        inputs: text,
-        parameters: {
-          candidate_labels: ["high risk", "medium risk", "low risk"],
+    const response = await fetch(
+      "https://router.huggingface.co/hf-inference/models/facebook/bart-large-mnli",
+      {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${process.env.HF_API_KEY}`,
+          "Content-Type": "application/json",
         },
-      }),
-    });
-
-    if (!response.ok) {
-      const errorText = await response.text();
-      console.error("❌ HF Risk API Error:", errorText);
-      return fallbackRisk(text);
-    }
+        body: JSON.stringify({
+          inputs: text,
+          parameters: {
+            candidate_labels: ["high", "medium", "low"],
+          },
+        }),
+      }
+    );
 
     const data = await response.json();
 
-    if (!data.labels || !data.scores) {
+    console.log("📦 HF RAW RESPONSE:", data);
+
+    // ❗ handle error
+    if (data.error) {
+      console.log("⚠️ HF Risk Error:", data.error);
       return fallbackRisk(text);
     }
 
-    const result = {
-      risk: data.labels[0].split(" ")[0], // high / medium / low
-      intensity: Number(data.scores[0].toFixed(2)),
-    };
+    // ✅ HANDLE ARRAY RESPONSE (THIS WAS MISSING)
+    if (Array.isArray(data)) {
+      const top = data.reduce((max, curr) =>
+        curr.score > max.score ? curr : max
+      );
 
-    console.log(
-      `🚨 Risk: ${result.risk} | Intensity: ${result.intensity}`
-    );
+      const result = {
+        risk: top.label,
+        intensity: Number(top.score.toFixed(2)),
+      };
 
-    return result;
+      console.log(
+        `🚨 Risk: ${result.risk} | Intensity: ${result.intensity}`
+      );
+
+      return result;
+    }
+
+    // ❗ fallback if unexpected format
+    console.log("⚠️ Unknown HF format");
+    return fallbackRisk(text);
+
   } catch (error) {
     console.error("❌ Risk error:", error.message);
     return fallbackRisk(text);
   }
 };
+// const detectRisk = async (text) => {
+//   try {
+//     console.log("🔥 detectRisk INPUT:", text);
+
+//     const HF_URL =
+//       "https://api-inference.huggingface.co/models/facebook/bart-large-mnli";
+
+//     const response = await fetch(HF_URL, {
+//       method: "POST",
+//       headers: {
+//         Authorization: `Bearer ${process.env.HF_API_KEY}`,
+//         "Content-Type": "application/json",
+//       },
+//       body: JSON.stringify({
+//         inputs: text,
+//         parameters: {
+//           candidate_labels: ["high risk", "medium risk", "low risk"],
+//         },
+//       }),
+//     });
+
+//     if (!response.ok) {
+//       const errorText = await response.text();
+//       console.error("❌ HF Risk API Error:", errorText);
+//       return fallbackRisk(text);
+//     }
+
+//     const data = await response.json();
+
+//     if (!data.labels || !data.scores) {
+//       return fallbackRisk(text);
+//     }
+
+//     const result = {
+//       risk: data.labels[0].split(" ")[0], // high / medium / low
+//       intensity: Number(data.scores[0].toFixed(2)),
+//     };
+
+//     console.log(
+//       `🚨 Risk: ${result.risk} | Intensity: ${result.intensity}`
+//     );
+
+//     return result;
+//   } catch (error) {
+//     console.error("❌ Risk error:", error.message);
+//     return fallbackRisk(text);
+//   }
+// };
 const fallbackRisk = (text) => {
   const highRiskWords = [
     "suicide",
