@@ -189,7 +189,8 @@ const Chat = () => {
   };
   const profileImage = localStorage.getItem("profile_image");
   return (
-    <div className="min-h-screen bg-gradient-to-br from-indigo-500 via-purple-500 to-pink-500 flex flex-col font-sans">
+    // previous background colour -  from-indigo-500 via-purple-500 to-pink-500
+    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-gray-900 to-slate-800 flex flex-col font-sans">
       {/* Header */}
       <div className="absolute top-4 left-4 z-50">
         {!localStorage.getItem("token") ? (
